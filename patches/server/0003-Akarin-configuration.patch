@@ -6,7 +6,7 @@ Subject: [PATCH] Akarin configuration
 
 
 diff --git a/src/main/java/co/aikar/timings/TimingsExport.java b/src/main/java/co/aikar/timings/TimingsExport.java
-index b09981e9bd2d24a0f0e291fabfbbbf0b3887a80b..501dacb4584412dd84e36421e113a1f068693e47 100644
+index 5dfa0658838c4801cdf260eae8b98163f729e5af..841a8d2b392acdcef90592b841cbbcb2237c6901 100644
 --- a/src/main/java/co/aikar/timings/TimingsExport.java
 +++ b/src/main/java/co/aikar/timings/TimingsExport.java
 @@ -231,6 +231,7 @@ public class TimingsExport extends Thread {
@@ -207,22 +207,22 @@ index 0000000000000000000000000000000000000000..2ac8f02a97429f04f3e5c9206ec228ed
 +
 +}
 diff --git a/src/main/java/net/minecraft/server/DedicatedServer.java b/src/main/java/net/minecraft/server/DedicatedServer.java
-index 1f1243ae8371a3e76ebfdee91b327db832767c4a..201ce4a0411f9ddc775053130a7ca62f7412d5f3 100644
+index 578f7809cb09e746778d05b153e02c569f0d1d90..665c98fc43a237b809fc80573b8a9a740ed47d9e 100644
 --- a/src/main/java/net/minecraft/server/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/DedicatedServer.java
-@@ -195,6 +195,7 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
+@@ -171,6 +171,7 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
          com.destroystokyo.paper.VersionHistoryManager.INSTANCE.getClass(); // load version history now
          // Paper end
-         com.tuinity.tuinity.config.TuinityConfig.init((File) options.valueOf("tuinity-settings")); // Tuinity - Server Config
-+        io.akarin.server.Config.init((File) options.valueOf("akarin-settings")); // Akarin - Server Config
+         com.tuinity.tuinity.config.TuinityConfig.init((java.io.File) options.valueOf("tuinity-settings")); // Tuinity - Server Config
++        io.akarin.server.Config.init((java.io.File) options.valueOf("akarin-settings")); // Akarin - Server Config
  
-         this.setSpawnAnimals(dedicatedserverproperties.spawnAnimals);
-         this.setSpawnNPCs(dedicatedserverproperties.spawnNpcs);
+         this.setPVP(dedicatedserverproperties.pvp);
+         this.setAllowFlight(dedicatedserverproperties.allowFlight);
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 6ae9ec627e0cf2b3b464a8d86e08a6deba713675..655e0b5e52e22a1ac1ff3718ad5ab3ab61ef7e41 100644
+index 8df4ef48815977ad6fabb917520969eb46006252..df316296a97231f36fd36573a96a915fa4ed6f40 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
-@@ -89,6 +89,7 @@ public abstract class World implements GeneratorAccess, AutoCloseable {
+@@ -95,6 +95,7 @@ public abstract class World implements GeneratorAccess, AutoCloseable {
      public final ChunkPacketBlockController chunkPacketBlockController; // Paper - Anti-Xray
  
      public final com.tuinity.tuinity.config.TuinityConfig.WorldConfig tuinityConfig; // Tuinity - Server Config
@@ -230,27 +230,27 @@ index 6ae9ec627e0cf2b3b464a8d86e08a6deba713675..655e0b5e52e22a1ac1ff3718ad5ab3ab
  
      public final co.aikar.timings.WorldTimingsHandler timings; // Paper
      public static BlockPosition lastPhysicsProblem; // Spigot
-@@ -140,6 +141,7 @@ public abstract class World implements GeneratorAccess, AutoCloseable {
-         this.paperConfig = new com.destroystokyo.paper.PaperWorldConfig(worlddata.getName(), this.spigotConfig); // Paper
+@@ -124,6 +125,7 @@ public abstract class World implements GeneratorAccess, AutoCloseable {
+         this.paperConfig = new com.destroystokyo.paper.PaperWorldConfig((((WorldDataServer)worlddatamutable).getName()), this.spigotConfig); // Paper
          this.chunkPacketBlockController = this.paperConfig.antiXray ? new ChunkPacketBlockControllerAntiXray(this.paperConfig, executor) : ChunkPacketBlockController.NO_OPERATION_INSTANCE; // Paper - Anti-Xray
-         this.tuinityConfig = new com.tuinity.tuinity.config.TuinityConfig.WorldConfig(worlddata.getName()); // Tuinity - Server Config
-+        this.akarinConfig = new io.akarin.server.Config.WorldConfig(worlddata.getName()); // Akarin - Server Config
+         this.tuinityConfig = new com.tuinity.tuinity.config.TuinityConfig.WorldConfig(((WorldDataServer)worlddatamutable).getName()); // Tuinity - Server Config
++        this.akarinConfig = new io.akarin.server.Config.WorldConfig(((WorldDataServer)worlddatamutable).getName()); // Akarin - Server Config
          this.generator = gen;
-         if (dimensionmanager.world == null) dimensionmanager.world = (WorldServer) this; // Paper
          this.world = new CraftWorld((WorldServer) this, gen, env);
+         this.ticksPerAnimalSpawns = this.getServer().getTicksPerAnimalSpawns(); // CraftBukkit
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 760752eaeb07af551cd3cfd36be064c048a05d5b..8863a778a8c34513bc02e42376ebce295d515393 100644
+index cebcb845b59c6c8cef9e4802ad09a72d631d3928..22c324e6bb0ed1e18d8464a01ca9f7ee30038d23 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -816,6 +816,7 @@ public final class CraftServer implements Server {
+@@ -847,6 +847,7 @@ public final class CraftServer implements Server {
          org.spigotmc.SpigotConfig.init((File) console.options.valueOf("spigot-settings")); // Spigot
          com.destroystokyo.paper.PaperConfig.init((File) console.options.valueOf("paper-settings")); // Paper
          com.tuinity.tuinity.config.TuinityConfig.init((File) console.options.valueOf("tuinity-settings")); // Tuinity - Server Config
 +        io.akarin.server.Config.init((File) console.options.valueOf("akarin-settings")); // Akarin - Server Config
          for (WorldServer world : console.getWorlds()) {
-             world.worldData.setDifficulty(config.difficulty);
+             world.worldDataServer.setDifficulty(config.difficulty);
              world.setSpawnFlags(config.spawnMonsters, config.spawnAnimals);
-@@ -845,6 +846,7 @@ public final class CraftServer implements Server {
+@@ -882,6 +883,7 @@ public final class CraftServer implements Server {
              world.spigotConfig.init(); // Spigot
              world.paperConfig.init(); // Paper
              world.tuinityConfig.init(); // Tuinity - Server Config
@@ -258,7 +258,7 @@ index 760752eaeb07af551cd3cfd36be064c048a05d5b..8863a778a8c34513bc02e42376ebce29
          }
  
          Plugin[] pluginClone = pluginManager.getPlugins().clone(); // Paper
-@@ -2147,6 +2149,14 @@ public final class CraftServer implements Server {
+@@ -2217,6 +2219,14 @@ public final class CraftServer implements Server {
          }
          // Tuinity end - add config to timings report
  
@@ -274,7 +274,7 @@ index 760752eaeb07af551cd3cfd36be064c048a05d5b..8863a778a8c34513bc02e42376ebce29
          public void restart() {
              org.spigotmc.RestartCommand.restart();
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
-index cce21aaf3ba8c5049334e17b238aaf44d64db5fe..6464c181bbe35c4621b3b7eac6da47dc50de4e87 100644
+index 639de6f4b9dc1b511439fcf52ea64ad6a91b7e3d..e0b936b1d83a10579ee68d31c0e1794e2f997b88 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
 @@ -146,6 +146,14 @@ public class Main {

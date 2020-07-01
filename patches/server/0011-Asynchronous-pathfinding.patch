@@ -6,10 +6,10 @@ Subject: [PATCH] Asynchronous pathfinding
 
 
 diff --git a/src/main/java/net/minecraft/server/EntityInsentient.java b/src/main/java/net/minecraft/server/EntityInsentient.java
-index f01a305083bd755369d1efe6d41832639eb6040d..2afa9d7385c2b74dada9636dcc79beb8f7f54a64 100644
+index 027a55223c660f25b0b52f99efed5b0c037ae658..09f332aa02604dd86224a6f66ec4f84d7bf99318 100644
 --- a/src/main/java/net/minecraft/server/EntityInsentient.java
 +++ b/src/main/java/net/minecraft/server/EntityInsentient.java
-@@ -686,7 +686,7 @@ public abstract class EntityInsentient extends EntityLiving {
+@@ -757,7 +757,7 @@ public abstract class EntityInsentient extends EntityLiving {
          this.goalSelector.doTick();
          //this.world.getMethodProfiler().exit(); // Akarin - remove caller
          //this.world.getMethodProfiler().enter("navigation"); // Akarin - remove caller
@@ -19,7 +19,7 @@ index f01a305083bd755369d1efe6d41832639eb6040d..2afa9d7385c2b74dada9636dcc79beb8
          //this.world.getMethodProfiler().enter("mob tick"); // Akarin - remove caller
          this.mobTick();
 diff --git a/src/main/java/net/minecraft/server/Navigation.java b/src/main/java/net/minecraft/server/Navigation.java
-index abf450917e605972d84cb603b966feb013ae0002..4f7f40d5e7050d9b2da29c6e6efe7c5bef560d55 100644
+index 681465d8a74831461dce4615d2d19c7ed46bc299..f04411a2a295d2a982dca5851ae76a80a6a83585 100644
 --- a/src/main/java/net/minecraft/server/Navigation.java
 +++ b/src/main/java/net/minecraft/server/Navigation.java
 @@ -183,7 +183,7 @@ public class Navigation extends NavigationAbstract {
@@ -29,16 +29,16 @@ index abf450917e605972d84cb603b966feb013ae0002..4f7f40d5e7050d9b2da29c6e6efe7c5b
 -                        PathType pathtype = this.o.a(this.b, i2, j - 1, j2, this.a, l, i1, j1, true, true);
 +                        PathType pathtype = this.o.a(this.o.a, i2, j - 1, j2, this.a, l, i1, j1, true, true); // Akarin - use chunk cache
  
-                         if (pathtype == PathType.WATER) {
+                         if (!this.a(pathtype)) {
                              return false;
 diff --git a/src/main/java/net/minecraft/server/NavigationAbstract.java b/src/main/java/net/minecraft/server/NavigationAbstract.java
-index b763d7f37eb7c9ff1326ef27c478454f3dd574d4..7f061ec1d809337c697794f2f08a06f1ebcaa39f 100644
+index 600c506ea7dc32f62d2acd391918679818992a1d..c14422efe99f6bde6ad08a9ea0a7c6387f63fd45 100644
 --- a/src/main/java/net/minecraft/server/NavigationAbstract.java
 +++ b/src/main/java/net/minecraft/server/NavigationAbstract.java
-@@ -29,6 +29,15 @@ public abstract class NavigationAbstract {
-     private int r;
-     private float s;
-     private final Pathfinder t; public Pathfinder getPathfinder() { return this.t; } // Paper - OBFHELPER
+@@ -28,6 +28,15 @@ public abstract class NavigationAbstract {
+     private int q;
+     private float r;
+     private final Pathfinder s; public Pathfinder getPathfinder() { return this.s; } // Paper - OBFHELPER
 +    // Akarin start - Async pathfinder
 +    private long lastPathfindAsync;
 +    private static final java.util.concurrent.ExecutorService pathfindExecutor =
@@ -51,7 +51,7 @@ index b763d7f37eb7c9ff1326ef27c478454f3dd574d4..7f061ec1d809337c697794f2f08a06f1
  
      public NavigationAbstract(EntityInsentient entityinsentient, World world) {
          this.g = Vec3D.a;
-@@ -78,6 +87,40 @@ public abstract class NavigationAbstract {
+@@ -76,6 +85,40 @@ public abstract class NavigationAbstract {
          }
  
      }
@@ -92,7 +92,7 @@ index b763d7f37eb7c9ff1326ef27c478454f3dd574d4..7f061ec1d809337c697794f2f08a06f1
  
      @Nullable
      public final PathEntity calculateDestination(double d0, double d1, double d2) { return a(d0, d1, d2, 0); } public final PathEntity a(double d0, double d1, double d2, int i) { // Paper - OBFHELPER
-@@ -153,6 +196,17 @@ public abstract class NavigationAbstract {
+@@ -157,6 +200,17 @@ public abstract class NavigationAbstract {
              return pathentity;
          }
      }
@@ -110,7 +110,7 @@ index b763d7f37eb7c9ff1326ef27c478454f3dd574d4..7f061ec1d809337c697794f2f08a06f1
  
      public boolean a(double d0, double d1, double d2, double d3) {
          return this.a(this.a(d0, d1, d2, 1), d3);
-@@ -246,6 +300,37 @@ public abstract class NavigationAbstract {
+@@ -250,6 +304,37 @@ public abstract class NavigationAbstract {
              }
          }
      }
@@ -148,7 +148,7 @@ index b763d7f37eb7c9ff1326ef27c478454f3dd574d4..7f061ec1d809337c697794f2f08a06f1
  
      protected void l() {
          Vec3D vec3d = this.b();
-@@ -259,6 +344,20 @@ public abstract class NavigationAbstract {
+@@ -267,6 +352,20 @@ public abstract class NavigationAbstract {
  
          this.a(vec3d);
      }
@@ -167,9 +167,9 @@ index b763d7f37eb7c9ff1326ef27c478454f3dd574d4..7f061ec1d809337c697794f2f08a06f1
 +    }
 +    // Akarin end
  
-     protected void a(Vec3D vec3d) {
-         if (this.e - this.f > 100) {
-@@ -293,10 +392,50 @@ public abstract class NavigationAbstract {
+     private boolean b(Vec3D vec3d) {
+         if (this.c.e() <= this.c.f() + 1) {
+@@ -317,6 +416,41 @@ public abstract class NavigationAbstract {
          }
  
      }
@@ -209,6 +209,9 @@ index b763d7f37eb7c9ff1326ef27c478454f3dd574d4..7f061ec1d809337c697794f2f08a06f1
 +    }
 +    // Akarin end
  
+     private void e() {
+         this.h = BaseBlockPosition.ZERO;
+@@ -327,6 +461,11 @@ public abstract class NavigationAbstract {
      public boolean m() {
          return this.c == null || this.c.b();
      }
@@ -221,20 +224,20 @@ index b763d7f37eb7c9ff1326ef27c478454f3dd574d4..7f061ec1d809337c697794f2f08a06f1
      public boolean n() {
          return !this.m();
 diff --git a/src/main/java/net/minecraft/server/Pathfinder.java b/src/main/java/net/minecraft/server/Pathfinder.java
-index 71b96943d865105f279dda613b7ac6b3ffed793b..5313f00d33349d5aa712f2da02033a247415d7bd 100644
+index b31d1f73ce0f067e352868b53eab7557c34b17eb..72e9751b390b3eea37307d865faf993fff879e1e 100644
 --- a/src/main/java/net/minecraft/server/Pathfinder.java
 +++ b/src/main/java/net/minecraft/server/Pathfinder.java
-@@ -27,7 +27,7 @@ public class Pathfinder {
+@@ -26,7 +26,7 @@ public class Pathfinder {
      }
  
      @Nullable
 -    public PathEntity a(ChunkCache chunkcache, EntityInsentient entityinsentient, Set<BlockPosition> set, float f, int i, float f1) {
 +    public synchronized PathEntity a(ChunkCache chunkcache, EntityInsentient entityinsentient, Set<BlockPosition> set, float f, int i, float f1) { // Akarin - synchronized
-         this.a.a();
-         this.e.a(chunkcache, entityinsentient);
-         PathPoint pathpoint = this.e.b();
+         this.d.a();
+         this.c.a(chunkcache, entityinsentient);
+         PathPoint pathpoint = this.c.b();
 diff --git a/src/main/java/net/minecraft/server/PathfinderTurtle.java b/src/main/java/net/minecraft/server/PathfinderTurtle.java
-index 59b1fe289c57b9e9f21b74c26cc1836255dad78b..1790878ae9ac33be86bed0b962b8171bf666d119 100644
+index cea160885783e8666b616375eac44ba6d1880e1f..9598563b4f97500fd3fba0165813d564d9c96c4f 100644
 --- a/src/main/java/net/minecraft/server/PathfinderTurtle.java
 +++ b/src/main/java/net/minecraft/server/PathfinderTurtle.java
 @@ -148,7 +148,7 @@ public class PathfinderTurtle extends PathfinderNormal {
@@ -247,7 +250,7 @@ index 59b1fe289c57b9e9f21b74c26cc1836255dad78b..1790878ae9ac33be86bed0b962b8171b
                      }
  
 diff --git a/src/main/java/net/minecraft/server/PathfinderWater.java b/src/main/java/net/minecraft/server/PathfinderWater.java
-index 075b63ef57a1528118f03a00c7156b3cb7744969..a3473ddcfe15d329eba78bbd60c00541cb1b88bb 100644
+index fba6692a1e537b90e20aa448567c0ad6db653332..d576edc8c30288e98aeda8f1cb561b22c6b37536 100644
 --- a/src/main/java/net/minecraft/server/PathfinderWater.java
 +++ b/src/main/java/net/minecraft/server/PathfinderWater.java
 @@ -63,7 +63,7 @@ public class PathfinderWater extends PathfinderAbstract {

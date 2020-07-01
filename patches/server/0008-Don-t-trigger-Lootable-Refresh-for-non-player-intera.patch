@@ -6,7 +6,7 @@ Subject: [PATCH] Don't trigger Lootable Refresh for non player interaction
 
 
 diff --git a/src/main/java/net/minecraft/server/TileEntityLootable.java b/src/main/java/net/minecraft/server/TileEntityLootable.java
-index 3b394c2726e0fbe595641a022e59c8967d525f82..aa5300b0fae4728c15c431147ad28b39968fb160 100644
+index d017904561d093bf8f0061f646a75aa53975be88..b18114246851ede696ae74327ab9a03fc66c7ede 100644
 --- a/src/main/java/net/minecraft/server/TileEntityLootable.java
 +++ b/src/main/java/net/minecraft/server/TileEntityLootable.java
 @@ -49,6 +49,7 @@ public abstract class TileEntityLootable extends TileEntityContainer {

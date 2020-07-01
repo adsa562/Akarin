@@ -46,7 +46,7 @@ index 0000000000000000000000000000000000000000..83bf1d4cab653a9edcc8352609433a8f
 +    }
 +}
 diff --git a/src/main/java/net/minecraft/server/BehaviorInteractDoor.java b/src/main/java/net/minecraft/server/BehaviorInteractDoor.java
-index 01d9c2d92c580c9fabbb8bb4e8c93f3cc511ccf9..3db22c5f4df6fe68474839c3889ffbe5440f54dc 100644
+index c838dd880de8ea3e6355a7f0c391c36c8ae2ebd4..817cda4d814a6f3ed00674e0729b7d87cab8a1a6 100644
 --- a/src/main/java/net/minecraft/server/BehaviorInteractDoor.java
 +++ b/src/main/java/net/minecraft/server/BehaviorInteractDoor.java
 @@ -1,7 +1,9 @@
@@ -90,7 +90,7 @@ index 01d9c2d92c580c9fabbb8bb4e8c93f3cc511ccf9..3db22c5f4df6fe68474839c3889ffbe5
 +        // Akarin start - remove stream
 +        /*
          Stream stream = list.stream().filter((globalpos) -> {
-             return globalpos.getDimensionManager() == worldserver.getWorldProvider().getDimensionManager();
+             return globalpos.getDimensionManager() == worldserver.getDimensionKey();
          }).map(GlobalPos::getBlockPosition);
  
          list1.getClass();
@@ -144,15 +144,15 @@ index 01d9c2d92c580c9fabbb8bb4e8c93f3cc511ccf9..3db22c5f4df6fe68474839c3889ffbe5
 -                int j = list.indexOf(blockposition);
 +                int j = list.getOrDefault(blockposition, -1); // Akarin - List -> Map
  
-                 if (worldserver.getWorldProvider().getDimensionManager() != globalpos.getDimensionManager()) {
+                 if (worldserver.getDimensionKey() != globalpos.getDimensionManager()) {
                      iterator.remove();
 diff --git a/src/main/java/net/minecraft/server/BehaviorSleep.java b/src/main/java/net/minecraft/server/BehaviorSleep.java
-index dfe0f66500ab2ea733fd5ef84d7d80f32e2dfaab..46eb633084a2eb48cb0a42c5df2b69b9e93b22e1 100644
+index 615a06497588e07fa2b71194a5836ef6360bf0ca..e706a914504f8836c7430482b983e9d65334a631 100644
 --- a/src/main/java/net/minecraft/server/BehaviorSleep.java
 +++ b/src/main/java/net/minecraft/server/BehaviorSleep.java
-@@ -57,7 +57,7 @@ public class BehaviorSleep extends Behavior<EntityLiving> {
+@@ -59,7 +59,7 @@ public class BehaviorSleep extends Behavior<EntityLiving> {
      protected void a(WorldServer worldserver, EntityLiving entityliving, long i) {
-         if (i > this.a) {
+         if (i > this.b) {
              entityliving.getBehaviorController().getMemory(MemoryModuleType.OPENED_DOORS).ifPresent((set) -> {
 -                BehaviorInteractDoor.a(worldserver, (List) ImmutableList.of(), 0, entityliving, entityliving.getBehaviorController());
 +                BehaviorInteractDoor.a(worldserver, com.google.common.collect.ImmutableMap.of(), 0, entityliving, entityliving.getBehaviorController()); // Akarin - List -> Map

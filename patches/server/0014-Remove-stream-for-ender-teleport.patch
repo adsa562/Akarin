@@ -5,21 +5,21 @@ Subject: [PATCH] Remove stream for ender teleport
 
 
 diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
-index f5b8ada739afc9f8c0246e98947fe188b1231438..33b456d4348c503cc94557d623c537a8aed8f9ec 100644
+index 6cf03cb5bd52706c59c74d9db9c12a65087d8e11..6676805804e949dd9f7cc6341f854cda30b21dd1 100644
 --- a/src/main/java/net/minecraft/server/Entity.java
 +++ b/src/main/java/net/minecraft/server/Entity.java
-@@ -3092,7 +3092,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -3023,7 +3023,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
              WorldServer worldserver = (WorldServer) this.world;
  
              this.setPositionRotation(d0, d1, d2, this.yaw, this.pitch);
--            this.cg().forEach((entity) -> {
+-            this.co().forEach((entity) -> {
 +            this.collectPassengers().forEach((entity) -> { // Akarin - remove stream
                  worldserver.chunkCheck(entity);
-                 entity.aF = true;
-                 entity.a(Entity::teleportAndSync);
-@@ -3342,6 +3342,14 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
-     public Stream<Entity> cg() {
-         return Stream.concat(Stream.of(this), this.passengers.stream().flatMap(Entity::cg));
+                 entity.aE = true;
+                 Iterator iterator = entity.passengers.iterator();
+@@ -3270,6 +3270,14 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+     public Stream<Entity> co() {
+         return Stream.concat(Stream.of(this), this.passengers.stream().flatMap(Entity::co));
      }
 +    // Akarin start - non-stream version
 +    public List<Entity> collectPassengers() {

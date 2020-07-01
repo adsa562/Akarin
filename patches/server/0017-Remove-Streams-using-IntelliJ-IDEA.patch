@@ -1,0 +1,3052 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=E3=84=97=E3=84=A0=CB=8B=20=E3=84=91=E3=84=A7=CB=8A?=
+ <tsao-chi@the-lingo.org>
+Date: Wed, 1 Jul 2020 22:34:46 +0800
+Subject: [PATCH] Remove Streams using IntelliJ IDEA
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperCommand.java b/src/main/java/com/destroystokyo/paper/PaperCommand.java
+index 6bfcf86d44559849de66a24471e29d93217698bd..415be72e83e0638bee1dd7e03807194554e6e08c 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperCommand.java
++++ b/src/main/java/com/destroystokyo/paper/PaperCommand.java
+@@ -53,8 +53,15 @@ public class PaperCommand extends Command {
+             case "entity":
+                 if (args.length == 2)
+                     return getListMatchingLast(args, "help", "list");
+-                if (args.length == 3)
+-                    return getListMatchingLast(args, EntityTypes.getEntityNameList().stream().map(MinecraftKey::toString).sorted().toArray(String[]::new));
++                if (args.length == 3) {
++                    List<String> list = new ArrayList<>();
++                    for (MinecraftKey minecraftKey : EntityTypes.getEntityNameList()) {
++                        String toString = minecraftKey.toString();
++                        list.add(toString);
++                    }
++                    list.sort(null);
++                    return getListMatchingLast(args, list.toArray(new String[0]));
++                }
+                 break;
+             case "debug":
+                 if (args.length == 2) {
+@@ -397,9 +404,12 @@ public class PaperCommand extends Command {
+                     filter = args[2];
+                 }
+                 final String cleanfilter = filter.replace("?", ".?").replace("*", ".*?");
+-                Set<MinecraftKey> names = EntityTypes.getEntityNameList().stream()
+-                        .filter(n -> n.toString().matches(cleanfilter))
+-                        .collect(Collectors.toSet());
++                Set<MinecraftKey> names = new HashSet<>();
++                for (MinecraftKey n : EntityTypes.getEntityNameList()) {
++                    if (n.toString().matches(cleanfilter)) {
++                        names.add(n);
++                    }
++                }
+ 
+                 if (names.isEmpty()) {
+                     sender.sendMessage(ChatColor.RED + "Invalid filter, does not match any entities. Use /paper entity list for a proper list");
+@@ -429,18 +439,18 @@ public class PaperCommand extends Command {
+                 ChunkProviderServer chunkProviderServer = world.getChunkProvider();
+ 
+                 Collection<Entity> entities = world.entitiesById.values();
+-                entities.forEach(e -> {
+-                    MinecraftKey key = e.getMinecraftKey();
+-                    if (e.shouldBeRemoved) return; // Paper
++                for (Entity entity : entities) {
++                    MinecraftKey key = entity.getMinecraftKey();
++                    if (entity.shouldBeRemoved) continue;
+ 
+                     MutablePair<Integer, Map<ChunkCoordIntPair, Integer>> info = list.computeIfAbsent(key, k -> MutablePair.of(0, Maps.newHashMap()));
+-                    ChunkCoordIntPair chunk = new ChunkCoordIntPair(e.getChunkX(), e.getChunkZ());
++                    ChunkCoordIntPair chunk = new ChunkCoordIntPair(entity.getChunkX(), entity.getChunkZ());
+                     info.left++;
+                     info.right.put(chunk, info.right.getOrDefault(chunk, 0) + 1);
+-                    if (!chunkProviderServer.isInEntityTickingChunk(e)) {
++                    if (!chunkProviderServer.isInEntityTickingChunk(entity)) {
+                         nonEntityTicking.merge(key, Integer.valueOf(1), Integer::sum);
+                     }
+-                });
++                }
+ 
+                 if (names.size() == 1) {
+                     MinecraftKey name = names.iterator().next();
+@@ -451,28 +461,46 @@ public class PaperCommand extends Command {
+                         return;
+                     }
+                     sender.sendMessage("Entity: " + name + " Total Ticking: " + (info.getLeft() - nonTicking) + ", Total Non-Ticking: " + nonTicking);
+-                    info.getRight().entrySet().stream()
+-                            .sorted((a, b) -> !a.getValue().equals(b.getValue()) ? b.getValue() - a.getValue() : a.getKey().toString().compareTo(b.getKey().toString()))
+-                            .limit(10).forEach(e -> sender.sendMessage("  " + e.getValue() + ": " + e.getKey().x + ", " + e.getKey().z + (chunkProviderServer.isEntityTickingChunk(e.getKey()) ? " (Ticking)" : " (Non-Ticking)")));
++                    List<Map.Entry<ChunkCoordIntPair, Integer>> toSort = new ArrayList<>();
++                    for (Map.Entry<ChunkCoordIntPair, Integer> e : info.getRight().entrySet()) {
++                        toSort.add(e);
++                    }
++                    toSort.sort((a, b) -> !a.getValue().equals(b.getValue()) ? b.getValue() - a.getValue() : a.getKey().toString().compareTo(b.getKey().toString()));
++                    long limit = 10;
++                    for (Map.Entry<ChunkCoordIntPair, Integer> e : toSort) {
++                        if (limit-- == 0) break;
++                        sender.sendMessage("  " + e.getValue() + ": " + e.getKey().x + ", " + e.getKey().z + (chunkProviderServer.isEntityTickingChunk(e.getKey()) ? " (Ticking)" : " (Non-Ticking)"));
++                    }
+                 } else {
+-                    List<Pair<MinecraftKey, Integer>> info = list.entrySet().stream()
+-                            .filter(e -> names.contains(e.getKey()))
+-                            .map(e -> Pair.of(e.getKey(), e.getValue().left))
+-                            .sorted((a, b) -> !a.getRight().equals(b.getRight()) ? b.getRight() - a.getRight() : a.getKey().toString().compareTo(b.getKey().toString()))
+-                            .collect(Collectors.toList());
++                    List<Pair<MinecraftKey, Integer>> info = new ArrayList<>();
++                    for (Map.Entry<MinecraftKey, MutablePair<Integer, Map<ChunkCoordIntPair, Integer>>> minecraftKeyMutablePairEntry : list.entrySet()) {
++                        if (names.contains(minecraftKeyMutablePairEntry.getKey())) {
++                            Pair<MinecraftKey, Integer> of = Pair.of(minecraftKeyMutablePairEntry.getKey(), minecraftKeyMutablePairEntry.getValue().left);
++                            info.add(of);
++                        }
++                    }
++                    info.sort((a, b) -> !a.getRight().equals(b.getRight()) ? b.getRight() - a.getRight() : a.getKey().toString().compareTo(b.getKey().toString()));
+ 
+                     if (info == null || info.size() == 0) {
+                         sender.sendMessage(ChatColor.RED + "No entities found.");
+                         return;
+                     }
+ 
+-                    int count = info.stream().mapToInt(Pair::getRight).sum();
+-                    int nonTickingCount = nonEntityTicking.values().stream().mapToInt(Integer::intValue).sum();
++                    int count = 0;
++                    for (Pair<MinecraftKey, Integer> minecraftKeyIntegerPair : info) {
++                        int right = minecraftKeyIntegerPair.getRight();
++                        count += right;
++                    }
++                    int nonTickingCount = 0;
++                    for (Integer integer : nonEntityTicking.values()) {
++                        int intValue = integer.intValue();
++                        nonTickingCount += intValue;
++                    }
+                     sender.sendMessage("Total Ticking: " + (count - nonTickingCount) + ", Total Non-Ticking: " + nonTickingCount);
+-                    info.forEach(e -> {
++                    for (Pair<MinecraftKey, Integer> e : info) {
+                         int nonTicking = nonEntityTicking.getOrDefault(e.getKey(), Integer.valueOf(0)).intValue();
+                         sender.sendMessage("  " + (e.getValue() - nonTicking) + " (" + nonTicking + ") " + ": " + e.getKey());
+-                    });
++                    }
+                     sender.sendMessage("* First number is ticking entities, second number is non-ticking entities");
+                 }
+                 break;
+diff --git a/src/main/java/com/destroystokyo/paper/io/SyncLoadFinder.java b/src/main/java/com/destroystokyo/paper/io/SyncLoadFinder.java
+index 1a68a8012f83bab9e814159c76b8c3710c7b1112..6ccaf3491923f3092819f71c362045bba4952093 100644
+--- a/src/main/java/com/destroystokyo/paper/io/SyncLoadFinder.java
++++ b/src/main/java/com/destroystokyo/paper/io/SyncLoadFinder.java
+@@ -71,9 +71,11 @@ public class SyncLoadFinder {
+ 
+             final List<Pair<ThrowableWithEquals, SyncLoadInformation>> data = new ArrayList<>();
+ 
+-            entry.getValue().forEach((ThrowableWithEquals stacktrace, SyncLoadInformation times) -> {
+-                data.add(new Pair<>(stacktrace, times));
+-            });
++            for (Map.Entry<ThrowableWithEquals, SyncLoadInformation> e : entry.getValue().entrySet()) {
++                ThrowableWithEquals k = e.getKey();
++                SyncLoadInformation value = e.getValue();
++                data.add(new Pair<>(k, value));
++            }
+ 
+             data.sort((Pair<ThrowableWithEquals, SyncLoadInformation> pair1, Pair<ThrowableWithEquals, SyncLoadInformation> pair2) -> {
+                 return Integer.compare(pair2.getSecond().times, pair1.getSecond().times); // reverse order
+diff --git a/src/main/java/com/destroystokyo/paper/profile/CraftPlayerProfile.java b/src/main/java/com/destroystokyo/paper/profile/CraftPlayerProfile.java
+index 293b73f4747f48dbf8b6a8453d3fc777de11588d..8a18dfcda3c785e9c8bd134f88515e077dbef7dc 100644
+--- a/src/main/java/com/destroystokyo/paper/profile/CraftPlayerProfile.java
++++ b/src/main/java/com/destroystokyo/paper/profile/CraftPlayerProfile.java
+@@ -91,7 +91,9 @@ public class CraftPlayerProfile implements PlayerProfile {
+ 
+     @Override
+     public void setProperties(Collection<ProfileProperty> properties) {
+-        properties.forEach(this::setProperty);
++        for (ProfileProperty property : properties) {
++            setProperty(property);
++        }
+     }
+ 
+     @Override
+diff --git a/src/main/java/net/minecraft/server/AdvancementDataWorld.java b/src/main/java/net/minecraft/server/AdvancementDataWorld.java
+index e546de5e5f80ef35b6911ca411d8d898083949ef..a70e42f2d5055fde4b39f990f76f5e89ef707d4c 100644
+--- a/src/main/java/net/minecraft/server/AdvancementDataWorld.java
++++ b/src/main/java/net/minecraft/server/AdvancementDataWorld.java
+@@ -12,6 +12,7 @@ import java.util.Map;
+ import javax.annotation.Nullable;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import org.spigotmc.SpigotConfig;
+ 
+ public class AdvancementDataWorld extends ResourceDataJson {
+ 
+@@ -28,10 +29,12 @@ public class AdvancementDataWorld extends ResourceDataJson {
+     protected void a(Map<MinecraftKey, JsonElement> map, IResourceManager iresourcemanager, GameProfilerFiller gameprofilerfiller) {
+         Map<MinecraftKey, Advancement.SerializedAdvancement> map1 = Maps.newHashMap();
+ 
+-        map.forEach((minecraftkey, jsonelement) -> {
+-            // Spigot start
+-            if (org.spigotmc.SpigotConfig.disabledAdvancements != null && (org.spigotmc.SpigotConfig.disabledAdvancements.contains("*") || org.spigotmc.SpigotConfig.disabledAdvancements.contains(minecraftkey.toString()))) {
+-                return;
++        for (Map.Entry<MinecraftKey, JsonElement> entry : map.entrySet()) {
++            MinecraftKey minecraftkey = entry.getKey();
++            JsonElement jsonelement = entry.getValue();
++// Spigot start
++            if (SpigotConfig.disabledAdvancements != null && (SpigotConfig.disabledAdvancements.contains("*") || SpigotConfig.disabledAdvancements.contains(minecraftkey.toString()))) {
++                continue;
+             }
+             // Spigot end
+ 
+@@ -44,7 +47,7 @@ public class AdvancementDataWorld extends ResourceDataJson {
+                 AdvancementDataWorld.LOGGER.error("Parsing error loading custom advancement {}: {}", minecraftkey, jsonparseexception.getMessage());
+             }
+ 
+-        });
++        }
+         Advancements advancements = new Advancements();
+ 
+         advancements.a((Map) map1);
+diff --git a/src/main/java/net/minecraft/server/BehaviorInteractDoor.java b/src/main/java/net/minecraft/server/BehaviorInteractDoor.java
+index 817cda4d814a6f3ed00674e0729b7d87cab8a1a6..cd98d06650ec6b2257c59e4a709b122886c10119 100644
+--- a/src/main/java/net/minecraft/server/BehaviorInteractDoor.java
++++ b/src/main/java/net/minecraft/server/BehaviorInteractDoor.java
+@@ -4,6 +4,9 @@ import com.google.common.collect.ImmutableMap;
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Sets;
+ import io.akarin.server.IndexedBlockPosition;
++import org.bukkit.craftbukkit.block.CraftBlock;
++import org.bukkit.event.entity.EntityInteractEvent;
++
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Set;
+@@ -70,7 +73,7 @@ public class BehaviorInteractDoor extends Behavior<EntityLiving> {
+     }
+ 
+     private void a(WorldServer worldserver, java.util.Map<BlockPosition, Integer> list, Set<io.akarin.server.IndexedBlockPosition> set, int i, EntityLiving entityliving, BehaviorController<?> behaviorcontroller) { // Akarin - List -> Map, IndexedBlockPosition
+-        set.forEach((indexedblockposition) -> { // Akarin - IndexedBlockPosition
++        for (IndexedBlockPosition indexedblockposition : set) {// Akarin - IndexedBlockPosition
+             BlockPosition blockposition = indexedblockposition.get(); // Akarin - IndexedBlockPosition
+             // int j = list.indexOf(blockposition); // Akarin - IndexedBlockPosition
+             IBlockData iblockdata = worldserver.getType(blockposition);
+@@ -80,10 +83,10 @@ public class BehaviorInteractDoor extends Behavior<EntityLiving> {
+                 boolean flag = indexedblockposition.index() >= i; // Akarin - IndexedBlockPosition
+ 
+                 // CraftBukkit start - entities opening doors
+-                org.bukkit.event.entity.EntityInteractEvent event = new org.bukkit.event.entity.EntityInteractEvent(entityliving.getBukkitEntity(), org.bukkit.craftbukkit.block.CraftBlock.at(entityliving.world, blockposition));
++                EntityInteractEvent event = new EntityInteractEvent(entityliving.getBukkitEntity(), CraftBlock.at(entityliving.world, blockposition));
+                 entityliving.world.getServer().getPluginManager().callEvent(event);
+                 if (event.isCancelled()) {
+-                    return;
++                    continue;
+                 }
+                 // CaftBukkit end
+                 ((BlockDoor) block).setDoor(worldserver, blockposition, flag);
+@@ -103,7 +106,7 @@ public class BehaviorInteractDoor extends Behavior<EntityLiving> {
+                 }
+             }
+ 
+-        });
++        }
+         a(worldserver, list, i, entityliving, behaviorcontroller);
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/BiomeBase.java b/src/main/java/net/minecraft/server/BiomeBase.java
+index 798d84795eeacec19b6c38904dad9568c99c5ac7..20c695f496ea394d8405145009d0d764eb62cf4e 100644
+--- a/src/main/java/net/minecraft/server/BiomeBase.java
++++ b/src/main/java/net/minecraft/server/BiomeBase.java
+@@ -7,15 +7,8 @@ import com.google.common.collect.Sets;
+ import com.mojang.serialization.Codec;
+ import com.mojang.serialization.codecs.RecordCodecBuilder;
+ import it.unimi.dsi.fastutil.longs.Long2FloatLinkedOpenHashMap;
+-import java.util.Arrays;
+-import java.util.Collection;
+-import java.util.Comparator;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.Optional;
+-import java.util.Random;
+-import java.util.Set;
++
++import java.util.*;
+ import java.util.function.Function;
+ import java.util.stream.Collectors;
+ import java.util.stream.Stream;
+@@ -41,7 +34,14 @@ public class BiomeBase {
+             WorldGenSurfaceComposite.a.fieldOf("surface_builder").forGetter(biome -> biome.m),
+             Codec.simpleMap(WorldGenStage.Features.c, WorldGenCarverWrapper.a.listOf().promotePartial(SystemUtils.a("Carver: ", LOGGER::error)), INamable.a(WorldGenStage.Features.values())).fieldOf("carvers").forGetter(biome -> biome.q),
+             Codec.simpleMap((Codec<WorldGenStage.Decoration>) k1, WorldGenFeatureConfigured.b.listOf().promotePartial(SystemUtils.a("Feature: ", LOGGER::error)), INamable.a(WorldGenStage.Decoration.values())).fieldOf("features").forGetter(biome -> biome.r),
+-            StructureFeature.a.listOf().promotePartial(SystemUtils.a("Structure start: ", LOGGER::error)).fieldOf("starts").forGetter(biome -> biome.u.values().stream().sorted(Comparator.comparing(cf -> IRegistry.STRUCTURE_FEATURE.getKey(cf.b))).collect(Collectors.toList())),
++            StructureFeature.a.listOf().promotePartial(SystemUtils.a("Structure start: ", LOGGER::error)).fieldOf("starts").forGetter(biome -> {
++                List<StructureFeature<?, ?>> list = new ArrayList<>();
++                for (StructureFeature<?, ?> structureFeature : biome.u.values()) {
++                    list.add(structureFeature);
++                }
++                list.sort(Comparator.comparing(cf -> IRegistry.STRUCTURE_FEATURE.getKey(cf.b)));
++                return list;
++            }),
+             Codec.simpleMap(EnumCreatureType.g, BiomeMeta.b.listOf().promotePartial(SystemUtils.a("Spawn data: ", LOGGER::error)), INamable.a(EnumCreatureType.values())).fieldOf("spawners").forGetter(biome -> biome.v),
+             d.a.listOf().fieldOf("climate_parameters").forGetter(biome -> biome.x),
+             Codec.STRING.optionalFieldOf("parent").forGetter(biome -> Optional.ofNullable(biome.l))
+@@ -159,9 +159,13 @@ public class BiomeBase {
+         this.m = worldgensurfacecomposite;
+         this.q = map;
+         this.r = map1;
+-        this.u = (Map) list.stream().collect(Collectors.toMap((structurefeature) -> {
+-            return structurefeature.b;
+-        }, Function.identity()));
++        Map<StructureGenerator<?>, StructureFeature<?, ?>> result = new HashMap<>();
++        for (StructureFeature<?, ?> structurefeature : list) {
++            if (result.put(structurefeature.b, structurefeature) != null) {
++                throw new IllegalStateException("Duplicate key");
++            }
++        }
++        this.u = (Map) result;
+         this.v = Maps.newEnumMap(EnumCreatureType.class); this.v.putAll(map2); // Paper
+         this.x = list1;
+         this.l = (String) optional.orElse(null); // Paper - decompile fix
+@@ -670,9 +674,18 @@ public class BiomeBase {
+         NONE("none"), RAIN("rain"), SNOW("snow");
+ 
+         public static final Codec<BiomeBase.Precipitation> d = INamable.a(BiomeBase.Precipitation::values, BiomeBase.Precipitation::a);
+-        private static final Map<String, BiomeBase.Precipitation> e = (Map) Arrays.stream(values()).collect(Collectors.toMap(BiomeBase.Precipitation::b, (biomebase_precipitation) -> {
+-            return biomebase_precipitation;
+-        }));
++        private static final Map<String, BiomeBase.Precipitation> e;
++
++        static {
++            Map<String, Precipitation> map = new HashMap<>();
++            for (Precipitation biomebase_precipitation : values()) {
++                if (map.put(biomebase_precipitation.b(), biomebase_precipitation) != null) {
++                    throw new IllegalStateException("Duplicate key");
++                }
++            }
++            e = (Map) map;
++        }
++
+         private final String f;
+ 
+         private Precipitation(String s) {
+@@ -698,9 +711,18 @@ public class BiomeBase {
+         NONE("none"), TAIGA("taiga"), EXTREME_HILLS("extreme_hills"), JUNGLE("jungle"), MESA("mesa"), PLAINS("plains"), SAVANNA("savanna"), ICY("icy"), THEEND("the_end"), BEACH("beach"), FOREST("forest"), OCEAN("ocean"), DESERT("desert"), RIVER("river"), SWAMP("swamp"), MUSHROOM("mushroom"), NETHER("nether");
+ 
+         public static final Codec<BiomeBase.Geography> r = INamable.a(BiomeBase.Geography::values, BiomeBase.Geography::a);
+-        private static final Map<String, BiomeBase.Geography> s = (Map) Arrays.stream(values()).collect(Collectors.toMap(BiomeBase.Geography::b, (biomebase_geography) -> {
+-            return biomebase_geography;
+-        }));
++        private static final Map<String, BiomeBase.Geography> s;
++
++        static {
++            Map<String, Geography> map = new HashMap<>();
++            for (Geography biomebase_geography : values()) {
++                if (map.put(biomebase_geography.b(), biomebase_geography) != null) {
++                    throw new IllegalStateException("Duplicate key");
++                }
++            }
++            s = (Map) map;
++        }
++
+         private final String t;
+ 
+         private Geography(String s) {
+@@ -725,9 +747,18 @@ public class BiomeBase {
+ 
+         OCEAN("ocean"), COLD("cold"), MEDIUM("medium"), WARM("warm");
+ 
+-        private static final Map<String, BiomeBase.EnumTemperature> e = (Map) Arrays.stream(values()).collect(Collectors.toMap(BiomeBase.EnumTemperature::a, (biomebase_enumtemperature) -> {
+-            return biomebase_enumtemperature;
+-        }));
++        private static final Map<String, BiomeBase.EnumTemperature> e;
++
++        static {
++            Map<String, EnumTemperature> map = new HashMap<>();
++            for (EnumTemperature biomebase_enumtemperature : values()) {
++                if (map.put(biomebase_enumtemperature.a(), biomebase_enumtemperature) != null) {
++                    throw new IllegalStateException("Duplicate key");
++                }
++            }
++            e = (Map) map;
++        }
++
+         private final String f;
+ 
+         private EnumTemperature(String s) {
+diff --git a/src/main/java/net/minecraft/server/Block.java b/src/main/java/net/minecraft/server/Block.java
+index 81725611d5b8c10c05d561984f92dc67349900ec..09bb2f8b8d2451a41a1b1e77b8dfb6417748c20d 100644
+--- a/src/main/java/net/minecraft/server/Block.java
++++ b/src/main/java/net/minecraft/server/Block.java
+@@ -198,9 +198,9 @@ public class Block extends BlockBase implements IMaterial {
+ 
+     public static void c(IBlockData iblockdata, World world, BlockPosition blockposition) {
+         if (world instanceof WorldServer) {
+-            a(iblockdata, (WorldServer) world, blockposition, (TileEntity) null).forEach((itemstack) -> {
++            for (ItemStack itemstack : a(iblockdata, (WorldServer) world, blockposition, (TileEntity) null)) {
+                 a(world, blockposition, itemstack);
+-            });
++            }
+         }
+ 
+         iblockdata.dropNaturally(world, blockposition, ItemStack.b);
+@@ -208,9 +208,9 @@ public class Block extends BlockBase implements IMaterial {
+     public static void dropNaturally(IBlockData iblockdata, World world, BlockPosition blockposition, @Nullable TileEntity tileentity) { a(iblockdata, world, blockposition, tileentity); }
+     public static void a(IBlockData iblockdata, World world, BlockPosition blockposition, @Nullable TileEntity tileentity) {
+         if (world instanceof WorldServer) {
+-            a(iblockdata, (WorldServer) world, blockposition, tileentity).forEach((itemstack) -> {
++            for (ItemStack itemstack : a(iblockdata, (WorldServer) world, blockposition, tileentity)) {
+                 a(world, blockposition, itemstack);
+-            });
++            }
+         }
+ 
+         iblockdata.dropNaturally(world, blockposition, ItemStack.b);
+@@ -218,9 +218,9 @@ public class Block extends BlockBase implements IMaterial {
+ 
+     public static void dropItems(IBlockData iblockdata, World world, BlockPosition blockposition, @Nullable TileEntity tileentity, Entity entity, ItemStack itemstack) {
+         if (world instanceof WorldServer) {
+-            getDrops(iblockdata, (WorldServer) world, blockposition, tileentity, entity, itemstack).forEach((itemstack1) -> {
++            for (ItemStack itemstack1 : getDrops(iblockdata, (WorldServer) world, blockposition, tileentity, entity, itemstack)) {
+                 a(world, blockposition, itemstack1);
+-            });
++            }
+         }
+ 
+         iblockdata.dropNaturally(world, blockposition, itemstack);
+diff --git a/src/main/java/net/minecraft/server/BlockBase.java b/src/main/java/net/minecraft/server/BlockBase.java
+index c4ad88b7e08b7a17acb4282b4e6d05b10def236e..789b0c0c74d7e7b6200716fc5dc0c5f7433797c2 100644
+--- a/src/main/java/net/minecraft/server/BlockBase.java
++++ b/src/main/java/net/minecraft/server/BlockBase.java
+@@ -691,9 +691,14 @@ public abstract class BlockBase {
+                 }
+ 
+                 this.b = block.c(iblockdata, BlockAccessAir.INSTANCE, BlockPosition.ZERO, VoxelShapeCollision.a());
+-                this.c = Arrays.stream(EnumDirection.EnumAxis.values()).anyMatch((enumdirection_enumaxis) -> {
+-                    return this.b.b(enumdirection_enumaxis) < 0.0D || this.b.c(enumdirection_enumaxis) > 1.0D;
+-                });
++                boolean result = false;
++                for (EnumDirection.EnumAxis enumdirection_enumaxis : EnumDirection.EnumAxis.values()) {
++                    if (this.b.b(enumdirection_enumaxis) < 0.0D || this.b.c(enumdirection_enumaxis) > 1.0D) {
++                        result = true;
++                        break;
++                    }
++                }
++                this.c = result;
+                 this.d = new boolean[6];
+                 EnumDirection[] aenumdirection1 = f;
+                 int k = aenumdirection1.length;
+diff --git a/src/main/java/net/minecraft/server/BlockStateEnum.java b/src/main/java/net/minecraft/server/BlockStateEnum.java
+index 8dc620b22bb904aa6a82e2127aa9da861986525c..7eeb71accaae99d4398b6f24b1e9ef5a2b95b00a 100644
+--- a/src/main/java/net/minecraft/server/BlockStateEnum.java
++++ b/src/main/java/net/minecraft/server/BlockStateEnum.java
+@@ -4,11 +4,8 @@ import com.google.common.base.Predicates;
+ import com.google.common.collect.ImmutableSet;
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Maps;
+-import java.util.Arrays;
+-import java.util.Collection;
+-import java.util.Iterator;
+-import java.util.Map;
+-import java.util.Optional;
++
++import java.util.*;
+ import java.util.function.Predicate;
+ import java.util.stream.Collectors;
+ 
+@@ -75,7 +72,13 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends IBlockState<T>
+     }
+ 
+     public static <T extends Enum<T> & INamable> BlockStateEnum<T> a(String s, Class<T> oclass, Predicate<T> predicate) {
+-        return a(s, oclass, (Collection) Arrays.stream(oclass.getEnumConstants()).filter(predicate).collect(Collectors.toList()));
++        List<T> list = new ArrayList<>();
++        for (T t : oclass.getEnumConstants()) {
++            if (predicate.test(t)) {
++                list.add(t);
++            }
++        }
++        return a(s, oclass, (Collection) list);
+     }
+ 
+     public static <T extends Enum<T> & INamable> BlockStateEnum<T> of(String s, Class<T> oclass, T... at) {
+diff --git a/src/main/java/net/minecraft/server/ChunkMapDistance.java b/src/main/java/net/minecraft/server/ChunkMapDistance.java
+index b2770ad05be6daba383a30622e89eea76f3b48f6..be246869268e9c57801fd7c46191ab8815d0dc5e 100644
+--- a/src/main/java/net/minecraft/server/ChunkMapDistance.java
++++ b/src/main/java/net/minecraft/server/ChunkMapDistance.java
+@@ -296,18 +296,18 @@ public abstract class ChunkMapDistance {
+         delayDistanceManagerTick = true;
+         priority = Math.min(URGENT_PRIORITY - 1, Math.max(1, priority));
+         int finalPriority = priority;
+-        MCUtil.getSpiralOutChunks(center.asPosition(), radius).forEach(coords -> {
++        for (ChunkCoordIntPair coords : MCUtil.getSpiralOutChunks(center.asPosition(), radius)) {
+             addPriorityTicket(coords, TicketType.PRIORITY, finalPriority);
+-        });
++        }
+         delayDistanceManagerTick = false;
+         chunkMap.world.getChunkProvider().tickDistanceManager();
+     }
+ 
+     public void clearAreaPriorityTickets(ChunkCoordIntPair center, int radius) {
+         delayDistanceManagerTick = true;
+-        MCUtil.getSpiralOutChunks(center.asPosition(), radius).forEach(coords -> {
+-            this.removeTicket(coords.pair(), new Ticket<ChunkCoordIntPair>(TicketType.PRIORITY, PRIORITY_TICKET_LEVEL, coords));
+-        });
++        for (ChunkCoordIntPair coords : MCUtil.getSpiralOutChunks(center.asPosition(), radius)) {
++            this.removeTicket(coords.pair(), new Ticket<>(TicketType.PRIORITY, PRIORITY_TICKET_LEVEL, coords));
++        }
+         delayDistanceManagerTick = false;
+         chunkMap.world.getChunkProvider().tickDistanceManager();
+     }
+diff --git a/src/main/java/net/minecraft/server/ChunkRegionLoader.java b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
+index 742c59cb059c8a691727ae1a554743b1c059e594..cfaebf7a06acd3bc8f42b1035a6ac9d9598836fa 100644
+--- a/src/main/java/net/minecraft/server/ChunkRegionLoader.java
++++ b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
+@@ -55,7 +55,9 @@ public class ChunkRegionLoader {
+ 
+     public static ProtoChunk loadChunk(WorldServer worldserver, DefinedStructureManager definedstructuremanager, VillagePlace villageplace, ChunkCoordIntPair chunkcoordintpair, NBTTagCompound nbttagcompound) {
+         InProgressChunkHolder holder = loadChunk(worldserver, definedstructuremanager, villageplace, chunkcoordintpair, nbttagcompound, true);
+-        holder.tasks.forEach(Runnable::run);
++        for (Runnable task : holder.tasks) {
++            task.run();
++        }
+         return holder.protoChunk;
+     }
+ 
+@@ -403,9 +405,14 @@ public class ChunkRegionLoader {
+ 
+         for (int i = -1; i < 17; ++i) { // Paper - conflict on loop parameter change
+             int finalI = i;
+-            ChunkSection chunksection = (ChunkSection) Arrays.stream(achunksection).filter((chunksection1) -> {
+-                return chunksection1 != null && chunksection1.getYPosition() >> 4 == finalI;
+-            }).findFirst().orElse(Chunk.a);
++            ChunkSection found = Chunk.a;
++            for (ChunkSection chunksection1 : achunksection) {
++                if (chunksection1 != null && chunksection1.getYPosition() >> 4 == finalI) {
++                    found = chunksection1;
++                    break;
++                }
++            }
++            ChunkSection chunksection = (ChunkSection) found;
+             // Paper start - async chunk save for unload
+             NibbleArray nibblearray; // block light
+             NibbleArray nibblearray1; // sky light
+diff --git a/src/main/java/net/minecraft/server/ContainerGrindstone.java b/src/main/java/net/minecraft/server/ContainerGrindstone.java
+index 716304021f85a86a2f9492f5fb98e86bb7f089d2..2f74d066566c316ad25b4a18d45175f174d9e3fd 100644
+--- a/src/main/java/net/minecraft/server/ContainerGrindstone.java
++++ b/src/main/java/net/minecraft/server/ContainerGrindstone.java
+@@ -1,5 +1,6 @@
+ package net.minecraft.server;
+ 
++import java.util.HashMap;
+ import java.util.Iterator;
+ import java.util.Map;
+ import java.util.Map.Entry;
+@@ -243,9 +244,15 @@ public class ContainerGrindstone extends Container {
+         }
+ 
+         itemstack1.setCount(j);
+-        Map<Enchantment, Integer> map = (Map) EnchantmentManager.a(itemstack).entrySet().stream().filter((entry) -> {
+-            return ((Enchantment) entry.getKey()).c();
+-        }).collect(Collectors.toMap(Entry::getKey, Entry::getValue));
++        Map<Enchantment, Integer> result = new HashMap<>();
++        for (Entry<Enchantment, Integer> entry : EnchantmentManager.a(itemstack).entrySet()) {
++            if (entry.getKey().c()) {
++                if (result.put(entry.getKey(), entry.getValue()) != null) {
++                    throw new IllegalStateException("Duplicate key");
++                }
++            }
++        }
++        Map<Enchantment, Integer> map = (Map) result;
+ 
+         EnchantmentManager.a(map, itemstack1);
+         itemstack1.setRepairCost(0);
+diff --git a/src/main/java/net/minecraft/server/ContainerSmithing.java b/src/main/java/net/minecraft/server/ContainerSmithing.java
+index 76a81b30fa9e53952202c61717231d68d7be8e71..bcd49d5612db26759cd7a0fbbde1c54445fc5d07 100644
+--- a/src/main/java/net/minecraft/server/ContainerSmithing.java
++++ b/src/main/java/net/minecraft/server/ContainerSmithing.java
+@@ -69,9 +69,12 @@ public class ContainerSmithing extends ContainerAnvilAbstract {
+ 
+     @Override
+     protected boolean a(ItemStack itemstack) {
+-        return this.i.stream().anyMatch((recipesmithing) -> {
+-            return recipesmithing.a(itemstack);
+-        });
++        for (RecipeSmithing recipesmithing : this.i) {
++            if (recipesmithing.a(itemstack)) {
++                return true;
++            }
++        }
++        return false;
+     }
+ 
+     // CraftBukkit start
+diff --git a/src/main/java/net/minecraft/server/CraftingManager.java b/src/main/java/net/minecraft/server/CraftingManager.java
+index f27c7041cdc2f062f0abb222b02026194ab33c60..c2af174e639396ac70eb7b520fdd641b1d2c67e6 100644
+--- a/src/main/java/net/minecraft/server/CraftingManager.java
++++ b/src/main/java/net/minecraft/server/CraftingManager.java
+@@ -9,15 +9,9 @@ import com.google.gson.JsonElement;
+ import com.google.gson.JsonObject;
+ import com.google.gson.JsonParseException;
+ import com.google.gson.JsonSyntaxException;
+-import java.util.Collection;
+-import java.util.Collections;
+-import java.util.Comparator;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Map;
++
++import java.util.*;
+ import java.util.Map.Entry;
+-import java.util.Objects;
+-import java.util.Optional;
+ import java.util.stream.Collectors;
+ import java.util.stream.Stream;
+ import org.apache.logging.log4j.LogManager;
+@@ -93,9 +87,12 @@ public class CraftingManager extends ResourceDataJson {
+     }
+ 
+     public <C extends IInventory, T extends IRecipe<C>> List<T> a(Recipes<T> recipes) {
+-        return (List) this.b(recipes).values().stream().map((irecipe) -> {
+-            return irecipe;
+-        }).collect(Collectors.toList());
++        List<IRecipe<C>> list = new ArrayList<>();
++        for (IRecipe<C> irecipe : this.b(recipes).values()) {
++            IRecipe<C> ciRecipe = irecipe;
++            list.add(ciRecipe);
++        }
++        return (List) list;
+     }
+ 
+     public <C extends IInventory, T extends IRecipe<C>> List<T> b(Recipes<T> recipes, C c0, World world) {
+@@ -127,15 +124,24 @@ public class CraftingManager extends ResourceDataJson {
+     }
+ 
+     public Optional<? extends IRecipe<?>> a(MinecraftKey minecraftkey) {
+-        return this.recipes.values().stream().map((map) -> {
+-            return map.get(minecraftkey); // CraftBukkit - decompile error
+-        }).filter(Objects::nonNull).findFirst();
++        // CraftBukkit - decompile error
++        for (Object2ObjectLinkedOpenHashMap<MinecraftKey, IRecipe<?>> map : this.recipes.values()) {
++            IRecipe<?> iRecipe = map.get(minecraftkey);
++            if (iRecipe != null) {
++                return Optional.<IRecipe<?>>of(iRecipe);
++            }
++        }
++        return Optional.empty();
+     }
+ 
+     public Collection<IRecipe<?>> b() {
+-        return (Collection) this.recipes.values().stream().flatMap((map) -> {
+-            return map.values().stream();
+-        }).collect(Collectors.toSet());
++        Set<IRecipe<?>> set = new HashSet<>();
++        for (Object2ObjectLinkedOpenHashMap<MinecraftKey, IRecipe<?>> map : this.recipes.values()) {
++            for (IRecipe<?> iRecipe : map.values()) {
++                set.add(iRecipe);
++            }
++        }
++        return (Collection) set;
+     }
+ 
+     public Stream<MinecraftKey> d() {
+diff --git a/src/main/java/net/minecraft/server/CrashReport.java b/src/main/java/net/minecraft/server/CrashReport.java
+index cc6e6f245ee5e73bd570cf42381bf55ee0b364d3..7b5b8fcac615ab517b4dd8ad9fab17d635f716bc 100644
+--- a/src/main/java/net/minecraft/server/CrashReport.java
++++ b/src/main/java/net/minecraft/server/CrashReport.java
+@@ -11,6 +11,7 @@ import java.text.SimpleDateFormat;
+ import java.util.Date;
+ import java.util.Iterator;
+ import java.util.List;
++import java.util.StringJoiner;
+ import java.util.concurrent.CompletionException;
+ import java.util.stream.Collectors;
+ import org.apache.commons.io.IOUtils;
+@@ -66,7 +67,11 @@ public class CrashReport {
+         this.d.a("JVM Flags", () -> {
+             List<String> list = (List) SystemUtils.j().collect(Collectors.toList());
+ 
+-            return String.format("%d total; %s", list.size(), list.stream().collect(Collectors.joining(" ")));
++            StringJoiner joiner = new StringJoiner(" ");
++            for (String s : list) {
++                joiner.add(s);
++            }
++            return String.format("%d total; %s", list.size(), joiner.toString());
+         });
+         this.d.a("CraftBukkit Information", (CrashReportCallable) new org.bukkit.craftbukkit.CraftCrashReport()); // CraftBukkit
+     }
+diff --git a/src/main/java/net/minecraft/server/DataConverterFlatten.java b/src/main/java/net/minecraft/server/DataConverterFlatten.java
+index f80935cbb8d4001959f5e006c16ae6f4c087b169..a68829e2c671632fa0c642cf14b4e7c4e5e50c92 100644
+--- a/src/main/java/net/minecraft/server/DataConverterFlatten.java
++++ b/src/main/java/net/minecraft/server/DataConverterFlatten.java
+@@ -12,6 +12,8 @@ import com.mojang.datafixers.schemas.Schema;
+ import com.mojang.datafixers.types.Type;
+ import com.mojang.datafixers.util.Pair;
+ import com.mojang.serialization.Dynamic;
++
++import java.util.HashSet;
+ import java.util.Map;
+ import java.util.Optional;
+ import java.util.Set;
+@@ -342,9 +344,17 @@ public class DataConverterFlatten extends DataFix {
+         hashmap.put("minecraft:record_wait.0", "minecraft:music_disc_wait");
+         hashmap.put("minecraft:record_ward.0", "minecraft:music_disc_ward");
+     });
+-    private static final Set<String> b = (Set) DataConverterFlatten.a.keySet().stream().map((s) -> {
+-        return s.substring(0, s.indexOf(46));
+-    }).collect(Collectors.toSet());
++    private static final Set<String> b;
++
++    static {
++        Set<String> set = new HashSet<>();
++        for (String s : DataConverterFlatten.a.keySet()) {
++            String substring = s.substring(0, s.indexOf(46));
++            set.add(substring);
++        }
++        b = (Set) set;
++    }
++
+     private static final Set<String> c = Sets.newHashSet(new String[]{"minecraft:bow", "minecraft:carrot_on_a_stick", "minecraft:chainmail_boots", "minecraft:chainmail_chestplate", "minecraft:chainmail_helmet", "minecraft:chainmail_leggings", "minecraft:diamond_axe", "minecraft:diamond_boots", "minecraft:diamond_chestplate", "minecraft:diamond_helmet", "minecraft:diamond_hoe", "minecraft:diamond_leggings", "minecraft:diamond_pickaxe", "minecraft:diamond_shovel", "minecraft:diamond_sword", "minecraft:elytra", "minecraft:fishing_rod", "minecraft:flint_and_steel", "minecraft:golden_axe", "minecraft:golden_boots", "minecraft:golden_chestplate", "minecraft:golden_helmet", "minecraft:golden_hoe", "minecraft:golden_leggings", "minecraft:golden_pickaxe", "minecraft:golden_shovel", "minecraft:golden_sword", "minecraft:iron_axe", "minecraft:iron_boots", "minecraft:iron_chestplate", "minecraft:iron_helmet", "minecraft:iron_hoe", "minecraft:iron_leggings", "minecraft:iron_pickaxe", "minecraft:iron_shovel", "minecraft:iron_sword", "minecraft:leather_boots", "minecraft:leather_chestplate", "minecraft:leather_helmet", "minecraft:leather_leggings", "minecraft:shears", "minecraft:shield", "minecraft:stone_axe", "minecraft:stone_hoe", "minecraft:stone_pickaxe", "minecraft:stone_shovel", "minecraft:stone_sword", "minecraft:wooden_axe", "minecraft:wooden_hoe", "minecraft:wooden_pickaxe", "minecraft:wooden_shovel", "minecraft:wooden_sword"});
+ 
+     public DataConverterFlatten(Schema schema, boolean flag) {
+diff --git a/src/main/java/net/minecraft/server/DataPaletteBlock.java b/src/main/java/net/minecraft/server/DataPaletteBlock.java
+index e60ad41b22ddeeae4923a5b7b2999f2f9789e90d..eb5757f44f053ca9764bac65086142666b4cb80b 100644
+--- a/src/main/java/net/minecraft/server/DataPaletteBlock.java
++++ b/src/main/java/net/minecraft/server/DataPaletteBlock.java
+@@ -1,5 +1,6 @@
+ package net.minecraft.server;
+ 
++import it.unimi.dsi.fastutil.ints.Int2IntMap;
+ import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+ import com.destroystokyo.paper.antixray.ChunkPacketInfo; // Paper - Anti-Xray - Add chunk packet info
+ import java.util.Arrays;
+@@ -273,9 +274,9 @@ public class DataPaletteBlock<T> implements DataPaletteExpandable<T> {
+         this.a.a((i) -> {
+             int2intopenhashmap.put(i, int2intopenhashmap.get(i) + 1);
+         });
+-        int2intopenhashmap.int2IntEntrySet().forEach((entry) -> {
++        for (Int2IntMap.Entry entry : int2intopenhashmap.int2IntEntrySet()) {
+             datapaletteblock_a.accept(this.h.a(entry.getIntKey()), entry.getIntValue());
+-        });
++        }
+     }
+ 
+     // Paper start
+diff --git a/src/main/java/net/minecraft/server/DefinedStructure.java b/src/main/java/net/minecraft/server/DefinedStructure.java
+index 05aae52e662f7effbfb358a5fa6e33c3c4d86001..25323eccfe0cffd6e6d17dab111d9a473e11333f 100644
+--- a/src/main/java/net/minecraft/server/DefinedStructure.java
++++ b/src/main/java/net/minecraft/server/DefinedStructure.java
+@@ -3,13 +3,8 @@ package net.minecraft.server;
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Maps;
+ import com.mojang.datafixers.util.Pair;
+-import java.util.Collections;
+-import java.util.Comparator;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.Optional;
+-import java.util.Random;
++
++import java.util.*;
+ import java.util.stream.Collectors;
+ import javax.annotation.Nullable;
+ 
+@@ -811,9 +806,13 @@ public class DefinedStructure {
+ 
+         public List<DefinedStructure.BlockInfo> a(Block block) {
+             return (List) this.b.computeIfAbsent(block, (block1) -> {
+-                return (List) this.a.stream().filter((definedstructure_blockinfo) -> {
+-                    return definedstructure_blockinfo.b.a(block1);
+-                }).collect(Collectors.toList());
++                List<BlockInfo> list = new ArrayList<>();
++                for (BlockInfo definedstructure_blockinfo : this.a) {
++                    if (definedstructure_blockinfo.b.a(block1)) {
++                        list.add(definedstructure_blockinfo);
++                    }
++                }
++                return (List) list;
+             });
+         }
+     }
+diff --git a/src/main/java/net/minecraft/server/DispenserRegistry.java b/src/main/java/net/minecraft/server/DispenserRegistry.java
+index 00744785ab657a5aabbe2b3e1d5331aa683efe28..fdb11cfc423f64a358a0ba7a828b338c11388cae 100644
+--- a/src/main/java/net/minecraft/server/DispenserRegistry.java
++++ b/src/main/java/net/minecraft/server/DispenserRegistry.java
+@@ -110,14 +110,14 @@ public class DispenserRegistry {
+     private static <T> void a(Iterable<T> iterable, Function<T, String> function, Set<String> set) {
+         LocaleLanguage localelanguage = LocaleLanguage.a();
+ 
+-        iterable.forEach((object) -> {
+-            String s = (String) function.apply(object);
++        for (T object : iterable) {
++            String s = function.apply(object);
+ 
+             if (!localelanguage.b(s)) {
+                 set.add(s);
+             }
+ 
+-        });
++        }
+     }
+ 
+     private static void a(final Set<String> set) {
+@@ -156,9 +156,9 @@ public class DispenserRegistry {
+             throw new IllegalArgumentException("Not bootstrapped");
+         } else {
+             if (SharedConstants.d) {
+-                b().forEach((s) -> {
++                for (String s : b()) {
+                     DispenserRegistry.LOGGER.error("Missing translations: " + s);
+-                });
++                }
+             }
+ 
+             AttributeDefaults.a();
+diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
+index 6676805804e949dd9f7cc6341f854cda30b21dd1..782ec96aec78a5c305a5931bc5331bec23e7beda 100644
+--- a/src/main/java/net/minecraft/server/Entity.java
++++ b/src/main/java/net/minecraft/server/Entity.java
+@@ -3023,7 +3023,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+             WorldServer worldserver = (WorldServer) this.world;
+ 
+             this.setPositionRotation(d0, d1, d2, this.yaw, this.pitch);
+-            this.collectPassengers().forEach((entity) -> { // Akarin - remove stream
++            for (Entity entity : this.collectPassengers()) {// Akarin - remove stream
+                 worldserver.chunkCheck(entity);
+                 entity.aE = true;
+                 Iterator iterator = entity.passengers.iterator();
+@@ -3034,7 +3034,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+                     entity.a(entity1, Entity::teleportAndSync);
+                 }
+ 
+-            });
++            }
+         }
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityDragonFireball.java b/src/main/java/net/minecraft/server/EntityDragonFireball.java
+index 96fdf9d068c2df154dbc2fb7978b0ba7a030c834..31ee1f033072220c0136ec0101ce4c558059315c 100644
+--- a/src/main/java/net/minecraft/server/EntityDragonFireball.java
++++ b/src/main/java/net/minecraft/server/EntityDragonFireball.java
+@@ -1,5 +1,9 @@
+ package net.minecraft.server;
+ 
++import org.bukkit.craftbukkit.entity.CraftLivingEntity;
++import org.bukkit.entity.LivingEntity;
++
++import java.util.ArrayList;
+ import java.util.Iterator;
+ import java.util.List;
+ 
+@@ -46,7 +50,12 @@ public class EntityDragonFireball extends EntityFireball {
+                     }
+                 }
+ 
+-                if (new com.destroystokyo.paper.event.entity.EnderDragonFireballHitEvent((org.bukkit.entity.DragonFireball) this.getBukkitEntity(), list.stream().map(EntityLiving::getBukkitLivingEntity).collect(java.util.stream.Collectors.toList()), (org.bukkit.entity.AreaEffectCloud) entityareaeffectcloud.getBukkitEntity()).callEvent()) { // Paper
++                List<LivingEntity> result = new ArrayList<>();
++                for (EntityLiving entityLiving : list) {
++                    CraftLivingEntity bukkitLivingEntity = entityLiving.getBukkitLivingEntity();
++                    result.add(bukkitLivingEntity);
++                }
++                if (new com.destroystokyo.paper.event.entity.EnderDragonFireballHitEvent((org.bukkit.entity.DragonFireball) this.getBukkitEntity(), result, (org.bukkit.entity.AreaEffectCloud) entityareaeffectcloud.getBukkitEntity()).callEvent()) { // Paper
+                 this.world.triggerEffect(2006, this.getChunkCoordinates(), this.isSilent() ? -1 : 1);
+                 this.world.addEntity(entityareaeffectcloud);
+                 } else entityareaeffectcloud.die(); // Paper
+diff --git a/src/main/java/net/minecraft/server/EntityEnderDragon.java b/src/main/java/net/minecraft/server/EntityEnderDragon.java
+index 63a759cc18b5b765bc9d34f71dd775fd35dee280..e7f897c1fb5f45c5b22ca315874a2cd8d8d2c838 100644
+--- a/src/main/java/net/minecraft/server/EntityEnderDragon.java
++++ b/src/main/java/net/minecraft/server/EntityEnderDragon.java
+@@ -462,9 +462,9 @@ public class EntityEnderDragon extends EntityInsentient implements IMonster {
+                     TileEntity tileentity = nmsBlock.isTileEntity() ? this.world.getTileEntity(blockposition) : null;
+                     LootTableInfo.Builder loottableinfo_builder = (new LootTableInfo.Builder((WorldServer) this.world)).a(this.world.random).set(LootContextParameters.POSITION, blockposition).set(LootContextParameters.TOOL, ItemStack.b).set(LootContextParameters.EXPLOSION_RADIUS, 1.0F / event.getYield()).setOptional(LootContextParameters.BLOCK_ENTITY, tileentity);
+ 
+-                    craftBlock.getNMS().a(loottableinfo_builder).forEach((itemstack) -> {
++                    for (ItemStack itemstack : craftBlock.getNMS().a(loottableinfo_builder)) {
+                         Block.a(world, blockposition, itemstack);
+-                    });
++                    }
+                     craftBlock.getNMS().dropNaturally(world, blockposition, ItemStack.b);
+                 }
+                 // Paper start - TNTPrimeEvent
+diff --git a/src/main/java/net/minecraft/server/EntityFox.java b/src/main/java/net/minecraft/server/EntityFox.java
+index e6275a9fe6cd988fe4661966fd48149c3e73408c..3b1d958d12025ec42c904e17b25c0c179fc2182b 100644
+--- a/src/main/java/net/minecraft/server/EntityFox.java
++++ b/src/main/java/net/minecraft/server/EntityFox.java
+@@ -1,14 +1,8 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
+-import java.util.Arrays;
+-import java.util.Comparator;
+-import java.util.EnumSet;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.Optional;
+-import java.util.UUID;
++
++import java.util.*;
+ import java.util.function.Predicate;
+ import java.util.stream.Collectors;
+ import javax.annotation.Nullable;
+@@ -1404,12 +1398,29 @@ public class EntityFox extends EntityAnimal {
+ 
+         RED(0, "red", new BiomeBase[]{Biomes.TAIGA, Biomes.TAIGA_HILLS, Biomes.TAIGA_MOUNTAINS, Biomes.GIANT_TREE_TAIGA, Biomes.GIANT_SPRUCE_TAIGA, Biomes.GIANT_TREE_TAIGA_HILLS, Biomes.GIANT_SPRUCE_TAIGA_HILLS}), SNOW(1, "snow", new BiomeBase[]{Biomes.SNOWY_TAIGA, Biomes.SNOWY_TAIGA_HILLS, Biomes.SNOWY_TAIGA_MOUNTAINS});
+ 
+-        private static final EntityFox.Type[] c = (EntityFox.Type[]) Arrays.stream(values()).sorted(Comparator.comparingInt(EntityFox.Type::c)).toArray((i) -> {
+-            return new EntityFox.Type[i];
+-        });
+-        private static final Map<String, EntityFox.Type> d = (Map) Arrays.stream(values()).collect(Collectors.toMap(EntityFox.Type::a, (entityfox_type) -> {
+-            return entityfox_type;
+-        }));
++        private static final EntityFox.Type[] c;
++
++        static {
++            List<Type> list = new ArrayList<>();
++            for (Type type : values()) {
++                list.add(type);
++            }
++            list.sort(Comparator.comparingInt(Type::c));
++            c = (Type[]) list.toArray(new Type[0]);
++        }
++
++        private static final Map<String, EntityFox.Type> d;
++
++        static {
++            Map<String, Type> map = new HashMap<>();
++            for (Type entityfox_type : values()) {
++                if (map.put(entityfox_type.a(), entityfox_type) != null) {
++                    throw new IllegalStateException("Duplicate key");
++                }
++            }
++            d = (Map) map;
++        }
++
+         private final int e;
+         private final String f;
+         private final List<BiomeBase> g;
+diff --git a/src/main/java/net/minecraft/server/EntityLiving.java b/src/main/java/net/minecraft/server/EntityLiving.java
+index 16fc3737e7150cac9d9cfe729fa2f138b0379901..60f4e6e87ad6f899db5a565e766e06a48c5974af 100644
+--- a/src/main/java/net/minecraft/server/EntityLiving.java
++++ b/src/main/java/net/minecraft/server/EntityLiving.java
+@@ -2626,7 +2626,9 @@ public abstract class EntityLiving extends Entity {
+     private void b(Map<EnumItemSlot, ItemStack> map) {
+         List<Pair<EnumItemSlot, ItemStack>> list = Lists.newArrayListWithCapacity(map.size());
+ 
+-        map.forEach((enumitemslot, itemstack) -> {
++        for (Map.Entry<EnumItemSlot, ItemStack> entry : map.entrySet()) {
++            EnumItemSlot enumitemslot = entry.getKey();
++            ItemStack itemstack = entry.getValue();
+             ItemStack itemstack1 = itemstack.cloneItemStack();
+ 
+             list.add(Pair.of(enumitemslot, itemstack1));
+@@ -2638,7 +2640,7 @@ public abstract class EntityLiving extends Entity {
+                     this.b(enumitemslot, itemstack1);
+             }
+ 
+-        });
++        }
+         ((WorldServer) this.world).getChunkProvider().broadcast(this, new PacketPlayOutEntityEquipment(this.getId(), list));
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityPanda.java b/src/main/java/net/minecraft/server/EntityPanda.java
+index 42df0d74ee24ef9ac15ee19cfd298c5721df0d7d..5697761087f6661e4d63fcbfeadfe9a8c56a17b5 100644
+--- a/src/main/java/net/minecraft/server/EntityPanda.java
++++ b/src/main/java/net/minecraft/server/EntityPanda.java
+@@ -1,11 +1,6 @@
+ package net.minecraft.server;
+ 
+-import java.util.Arrays;
+-import java.util.Comparator;
+-import java.util.EnumSet;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Random;
++import java.util.*;
+ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ 
+@@ -997,9 +992,17 @@ public class EntityPanda extends EntityAnimal {
+ 
+         NORMAL(0, "normal", false), LAZY(1, "lazy", false), WORRIED(2, "worried", false), PLAYFUL(3, "playful", false), BROWN(4, "brown", true), WEAK(5, "weak", true), AGGRESSIVE(6, "aggressive", false);
+ 
+-        private static final EntityPanda.Gene[] h = (EntityPanda.Gene[]) Arrays.stream(values()).sorted(Comparator.comparingInt(EntityPanda.Gene::a)).toArray((i) -> {
+-            return new EntityPanda.Gene[i];
+-        });
++        private static final EntityPanda.Gene[] h;
++
++        static {
++            List<Gene> list = new ArrayList<>();
++            for (Gene gene : values()) {
++                list.add(gene);
++            }
++            list.sort(Comparator.comparingInt(Gene::a));
++            h = (Gene[]) list.toArray(new Gene[0]);
++        }
++
+         private final int i;
+         private final String j;
+         private final boolean k;
+diff --git a/src/main/java/net/minecraft/server/EntityPigZombie.java b/src/main/java/net/minecraft/server/EntityPigZombie.java
+index 19f5850220e0760e4f7554a63f60374372bc482c..d6aa6ba052bac46f5c9479cd54bd274296451939 100644
+--- a/src/main/java/net/minecraft/server/EntityPigZombie.java
++++ b/src/main/java/net/minecraft/server/EntityPigZombie.java
+@@ -1,5 +1,7 @@
+ package net.minecraft.server;
+ 
++import org.bukkit.event.entity.EntityTargetEvent;
++
+ import java.util.Random;
+ import java.util.UUID;
+ import javax.annotation.Nullable;
+@@ -101,15 +103,16 @@ public class EntityPigZombie extends EntityZombie implements IEntityAngerable {
+         double d0 = this.b(GenericAttributes.FOLLOW_RANGE);
+         AxisAlignedBB axisalignedbb = AxisAlignedBB.a(this.getPositionVector()).grow(d0, 10.0D, d0);
+ 
+-        this.world.b(EntityPigZombie.class, axisalignedbb).stream().filter((entitypigzombie) -> {
+-            return entitypigzombie != this;
+-        }).filter((entitypigzombie) -> {
+-            return entitypigzombie.getGoalTarget() == null;
+-        }).filter((entitypigzombie) -> {
+-            return !entitypigzombie.r(this.getGoalTarget());
+-        }).forEach((entitypigzombie) -> {
+-            entitypigzombie.setGoalTarget(this.getGoalTarget(), org.bukkit.event.entity.EntityTargetEvent.TargetReason.TARGET_ATTACKED_NEARBY_ENTITY, true); // CraftBukkit
+-        });
++        // CraftBukkit
++        for (EntityPigZombie entitypigzombie : this.world.b(EntityPigZombie.class, axisalignedbb)) {
++            if (entitypigzombie != this) {
++                if (entitypigzombie.getGoalTarget() == null) {
++                    if (!entitypigzombie.r(this.getGoalTarget())) {
++                        entitypigzombie.setGoalTarget(this.getGoalTarget(), EntityTargetEvent.TargetReason.TARGET_ATTACKED_NEARBY_ENTITY, true);
++                    }
++                }
++            }
++        }
+     }
+ 
+     private void fb() {
+diff --git a/src/main/java/net/minecraft/server/EntityPiglin.java b/src/main/java/net/minecraft/server/EntityPiglin.java
+index 26b546afd919fa70bae4947e120e1ecdc8345f42..a8e3e3e4b0b4f9af2f5ac551072a0e2caa644d07 100644
+--- a/src/main/java/net/minecraft/server/EntityPiglin.java
++++ b/src/main/java/net/minecraft/server/EntityPiglin.java
+@@ -63,7 +63,9 @@ public class EntityPiglin extends EntityMonster implements ICrossbow {
+     @Override
+     protected void dropDeathLoot(DamageSource damagesource, int i, boolean flag) {
+         super.dropDeathLoot(damagesource, i, flag);
+-        this.bB.f().forEach(this::a);
++        for (ItemStack itemStack : this.bB.f()) {
++            a(itemStack);
++        }
+     }
+ 
+     protected ItemStack k(ItemStack itemstack) {
+@@ -259,7 +261,9 @@ public class EntityPiglin extends EntityMonster implements ICrossbow {
+ 
+     private void b(WorldServer worldserver) {
+         PiglinAI.c(this);
+-        this.bB.f().forEach(this::a);
++        for (ItemStack itemStack : this.bB.f()) {
++            a(itemStack);
++        }
+         EntityPigZombie entitypigzombie = (EntityPigZombie) this.b(EntityTypes.ZOMBIFIED_PIGLIN);
+ 
+         entitypigzombie.addEffect(new MobEffect(MobEffects.CONFUSION, 200, 0));
+diff --git a/src/main/java/net/minecraft/server/EntityPlayer.java b/src/main/java/net/minecraft/server/EntityPlayer.java
+index b2b4754f07df5a37fedf510a3e4326afbd80b4f8..270985cdc5d8d70d80c6d01d3287e0893c5390f4 100644
+--- a/src/main/java/net/minecraft/server/EntityPlayer.java
++++ b/src/main/java/net/minecraft/server/EntityPlayer.java
+@@ -756,11 +756,11 @@ public class EntityPlayer extends EntityHuman implements ICrafting {
+     private void eW() {
+         AxisAlignedBB axisalignedbb = (new AxisAlignedBB(this.getChunkCoordinates())).grow(32.0D, 10.0D, 32.0D);
+ 
+-        this.world.b(EntityInsentient.class, axisalignedbb).stream().filter((entityinsentient) -> {
+-            return entityinsentient instanceof IEntityAngerable;
+-        }).forEach((entityinsentient) -> {
+-            ((IEntityAngerable) entityinsentient).b((EntityHuman) this);
+-        });
++        for (EntityInsentient entityinsentient : this.world.b(EntityInsentient.class, axisalignedbb)) {
++            if (entityinsentient instanceof IEntityAngerable) {
++                ((IEntityAngerable) entityinsentient).b(this);
++            }
++        }
+     }
+ 
+     @Override
+diff --git a/src/main/java/net/minecraft/server/EntitySheep.java b/src/main/java/net/minecraft/server/EntitySheep.java
+index a5532e49e7d4c365e8f71563ed30040486880eb4..bb8183ce9fd62178c4941ed0ff885eb717e3c8e9 100644
+--- a/src/main/java/net/minecraft/server/EntitySheep.java
++++ b/src/main/java/net/minecraft/server/EntitySheep.java
+@@ -1,10 +1,8 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Maps;
+-import java.util.Arrays;
+-import java.util.Map;
+-import java.util.Optional;
+-import java.util.Random;
++
++import java.util.*;
+ import java.util.stream.Collectors;
+ import javax.annotation.Nullable;
+ 
+@@ -35,9 +33,18 @@ public class EntitySheep extends EntityAnimal implements IShearable {
+         enummap.put(EnumColor.RED, Blocks.RED_WOOL);
+         enummap.put(EnumColor.BLACK, Blocks.BLACK_WOOL);
+     });
+-    private static final Map<EnumColor, float[]> bx = Maps.newEnumMap((Map) Arrays.stream(EnumColor.values()).collect(Collectors.toMap((enumcolor) -> {
+-        return enumcolor;
+-    }, EntitySheep::c)));
++    private static final Map<EnumColor, float[]> bx;
++
++    static {
++        Map<EnumColor, float[]> map = new HashMap<>();
++        for (EnumColor enumcolor : EnumColor.values()) {
++            if (map.put(enumcolor, c(enumcolor)) != null) {
++                throw new IllegalStateException("Duplicate key");
++            }
++        }
++        bx = Maps.newEnumMap((Map) map);
++    }
++
+     private int by;
+     private PathfinderGoalEatTile bz;
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityVillager.java b/src/main/java/net/minecraft/server/EntityVillager.java
+index 1fc6934dea27199bc899b8f45cdf76588f3ca60e..f083413d7838e48c5b961dbc0cd115f9f703694a 100644
+--- a/src/main/java/net/minecraft/server/EntityVillager.java
++++ b/src/main/java/net/minecraft/server/EntityVillager.java
+@@ -8,12 +8,8 @@ import com.mojang.serialization.DataResult;
+ import com.mojang.serialization.Dynamic;
+ import com.mojang.serialization.DynamicOps;
+ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+-import java.util.Collection;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.Optional;
+-import java.util.Set;
++
++import java.util.*;
+ import java.util.function.BiPredicate;
+ import java.util.stream.Collectors;
+ import javax.annotation.Nullable;
+@@ -807,9 +803,12 @@ public class EntityVillager extends EntityVillagerAbstract implements Reputation
+     private int fu() {
+         InventorySubcontainer inventorysubcontainer = this.getInventory();
+ 
+-        return EntityVillager.bw.entrySet().stream().mapToInt((entry) -> {
+-            return inventorysubcontainer.a((Item) entry.getKey()) * (Integer) entry.getValue();
+-        }).sum();
++        int sum = 0;
++        for (Map.Entry<Item, Integer> entry : EntityVillager.bw.entrySet()) {
++            int i1 = inventorysubcontainer.a(entry.getKey()) * entry.getValue();
++            sum += i1;
++        }
++        return sum;
+     }
+ 
+     public boolean canPlant() {
+@@ -857,17 +856,23 @@ public class EntityVillager extends EntityVillagerAbstract implements Reputation
+         if (this.a(i)) {
+             AxisAlignedBB axisalignedbb = this.getBoundingBox().grow(10.0D, 10.0D, 10.0D);
+             List<EntityVillager> list = this.world.a(EntityVillager.class, axisalignedbb);
+-            List<EntityVillager> list1 = (List) list.stream().filter((entityvillager) -> {
+-                return entityvillager.a(i);
+-            }).limit(5L).collect(Collectors.toList());
++            List<EntityVillager> result = new ArrayList<>();
++            long limit = 5L;
++            for (EntityVillager entityVillager : list) {
++                if (entityVillager.a(i)) {
++                    if (limit-- == 0) break;
++                    result.add(entityVillager);
++                }
++            }
++            List<EntityVillager> list1 = (List) result;
+ 
+             if (list1.size() >= j) {
+                 EntityIronGolem entityirongolem = this.fw();
+ 
+                 if (entityirongolem != null) {
+-                    list.forEach((entityvillager) -> {
++                    for (EntityVillager entityvillager : list) {
+                         entityvillager.b(i);
+-                    });
++                    }
+                 }
+             }
+         }
+diff --git a/src/main/java/net/minecraft/server/Explosion.java b/src/main/java/net/minecraft/server/Explosion.java
+index a0b47a4f1d095e609ea32a2a2810745beae06ebe..f3cc765af3eab90e1cf4997ca994e7e96e829e1b 100644
+--- a/src/main/java/net/minecraft/server/Explosion.java
++++ b/src/main/java/net/minecraft/server/Explosion.java
+@@ -290,9 +290,9 @@ public class Explosion {
+                             loottableinfo_builder.set(LootContextParameters.EXPLOSION_RADIUS, 1.0F / yield); // CraftBukkit - add yield
+                         }
+ 
+-                        iblockdata.a(loottableinfo_builder).forEach((itemstack) -> {
++                        for (ItemStack itemstack : iblockdata.a(loottableinfo_builder)) {
+                             a(objectarraylist, itemstack, blockposition1);
+-                        });
++                        }
+                     }
+ 
+                     this.world.setTypeAndData(blockposition, Blocks.AIR.getBlockData(), 3);
+diff --git a/src/main/java/net/minecraft/server/GameRules.java b/src/main/java/net/minecraft/server/GameRules.java
+index b245428604e2a432fa3bab4836a5ca1fb35c3f64..dec56f5fe2d01564905c19a907eceea11abd42de 100644
+--- a/src/main/java/net/minecraft/server/GameRules.java
++++ b/src/main/java/net/minecraft/server/GameRules.java
+@@ -112,16 +112,20 @@ public class GameRules {
+     public NBTTagCompound a() {
+         NBTTagCompound nbttagcompound = new NBTTagCompound();
+ 
+-        this.J.forEach((gamerules_gamerulekey, gamerules_gamerulevalue) -> {
++        for (Entry<GameRuleKey<?>, GameRuleValue<?>> entry : this.J.entrySet()) {
++            GameRuleKey<?> gamerules_gamerulekey = entry.getKey();
++            GameRuleValue<?> gamerules_gamerulevalue = entry.getValue();
+             nbttagcompound.setString(gamerules_gamerulekey.a, gamerules_gamerulevalue.getValue());
+-        });
++        }
+         return nbttagcompound;
+     }
+ 
+     private void a(DynamicLike<?> dynamiclike) {
+-        this.J.forEach((gamerules_gamerulekey, gamerules_gamerulevalue) -> {
++        for (Entry<GameRuleKey<?>, GameRuleValue<?>> entry : this.J.entrySet()) {
++            GameRuleKey<?> gamerules_gamerulekey = entry.getKey();
++            GameRuleValue<?> gamerules_gamerulevalue = entry.getValue();
+             dynamiclike.get(gamerules_gamerulekey.a).asString().result().ifPresent(gamerules_gamerulevalue::setValue);
+-        });
++        }
+     }
+ 
+     public GameRules b() {
+@@ -131,9 +135,11 @@ public class GameRules {
+     }
+ 
+     public static void a(GameRules.GameRuleVisitor gamerules_gamerulevisitor) {
+-        GameRules.I.forEach((gamerules_gamerulekey, gamerules_gameruledefinition) -> {
++        for (Entry<GameRuleKey<?>, GameRuleDefinition<?>> entry : GameRules.I.entrySet()) {
++            GameRuleKey<?> gamerules_gamerulekey = entry.getKey();
++            GameRuleDefinition<?> gamerules_gameruledefinition = entry.getValue();
+             a(gamerules_gamerulevisitor, gamerules_gamerulekey, gamerules_gameruledefinition);
+-        });
++        }
+     }
+ 
+     private static <T extends GameRules.GameRuleValue<T>> void a(GameRules.GameRuleVisitor gamerules_gamerulevisitor, GameRules.GameRuleKey<?> gamerules_gamerulekey, GameRules.GameRuleDefinition<?> gamerules_gameruledefinition) {
+diff --git a/src/main/java/net/minecraft/server/IOWorker.java b/src/main/java/net/minecraft/server/IOWorker.java
+index 8668b8f3941f37a7bc30a55c33baf74bd8ac49e3..620acc318d67a7317e3c40b24f2015aff5907be2 100644
+--- a/src/main/java/net/minecraft/server/IOWorker.java
++++ b/src/main/java/net/minecraft/server/IOWorker.java
+@@ -4,7 +4,9 @@ import com.google.common.collect.Maps;
+ import com.mojang.datafixers.util.Either;
+ import java.io.File;
+ import java.io.IOException;
++import java.util.ArrayList;
+ import java.util.Iterator;
++import java.util.List;
+ import java.util.Map;
+ import java.util.Map.Entry;
+ import java.util.concurrent.CompletableFuture;
+@@ -72,11 +74,12 @@ public class IOWorker implements AutoCloseable {
+ 
+     public CompletableFuture<Void> a() {
+         CompletableFuture<Void> completablefuture = this.a(() -> {
+-            return Either.left(CompletableFuture.allOf((CompletableFuture[]) this.e.values().stream().map((ioworker_a) -> {
+-                return ioworker_a.b;
+-            }).toArray((i) -> {
+-                return new CompletableFuture[i];
+-            })));
++            List<CompletableFuture<Void>> list = new ArrayList<>();
++            for (a ioworker_a : this.e.values()) {
++                CompletableFuture<Void> voidCompletableFuture = ioworker_a.b;
++                list.add(voidCompletableFuture);
++            }
++            return Either.left(CompletableFuture.allOf((CompletableFuture[]) list.toArray(new CompletableFuture[0])));
+         }).thenCompose(Function.identity());
+ 
+         return completablefuture.thenCompose((ovoid) -> {
+@@ -150,7 +153,11 @@ public class IOWorker implements AutoCloseable {
+             }
+ 
+             this.c.close();
+-            this.e.forEach(this::a);
++            for (Entry<ChunkCoordIntPair, a> entry : this.e.entrySet()) {
++                ChunkCoordIntPair key = entry.getKey();
++                a value = entry.getValue();
++                a(key, value);
++            }
+             this.e.clear();
+ 
+             try {
+diff --git a/src/main/java/net/minecraft/server/InventorySubcontainer.java b/src/main/java/net/minecraft/server/InventorySubcontainer.java
+index db5def8b1d4179a64b28366339a3634af593cd5e..4cf5dad0939ecb636752e19ad19aec2c882d5efc 100644
+--- a/src/main/java/net/minecraft/server/InventorySubcontainer.java
++++ b/src/main/java/net/minecraft/server/InventorySubcontainer.java
+@@ -1,6 +1,8 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
++
++import java.util.ArrayList;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.stream.Collectors;
+@@ -90,9 +92,13 @@ public class InventorySubcontainer implements IInventory, AutoRecipeOutput {
+     }
+ 
+     public List<ItemStack> f() {
+-        List<ItemStack> list = (List) this.items.stream().filter((itemstack) -> {
+-            return !itemstack.isEmpty();
+-        }).collect(Collectors.toList());
++        List<ItemStack> result = new ArrayList<>();
++        for (ItemStack itemstack : this.items) {
++            if (!itemstack.isEmpty()) {
++                result.add(itemstack);
++            }
++        }
++        List<ItemStack> list = (List) result;
+ 
+         this.clear();
+         return list;
+@@ -243,9 +249,13 @@ public class InventorySubcontainer implements IInventory, AutoRecipeOutput {
+     }
+ 
+     public String toString() {
+-        return ((List) this.items.stream().filter((itemstack) -> {
+-            return !itemstack.isEmpty();
+-        }).collect(Collectors.toList())).toString();
++        List<ItemStack> list = new ArrayList<>();
++        for (ItemStack itemstack : this.items) {
++            if (!itemstack.isEmpty()) {
++                list.add(itemstack);
++            }
++        }
++        return ((List) list).toString();
+     }
+ 
+     private void c(ItemStack itemstack) {
+diff --git a/src/main/java/net/minecraft/server/ItemCrossbow.java b/src/main/java/net/minecraft/server/ItemCrossbow.java
+index 31c80bb0a2e403c34fb9cd4b3ee4e903d90dc356..728767356ba82a77cc87040db5a7aef88c1ea8e1 100644
+--- a/src/main/java/net/minecraft/server/ItemCrossbow.java
++++ b/src/main/java/net/minecraft/server/ItemCrossbow.java
+@@ -171,9 +171,12 @@ public class ItemCrossbow extends ItemProjectileWeapon implements ItemVanishable
+     }
+ 
+     public static boolean a(ItemStack itemstack, Item item) {
+-        return k(itemstack).stream().anyMatch((itemstack1) -> {
+-            return itemstack1.getItem() == item;
+-        });
++        for (ItemStack itemstack1 : k(itemstack)) {
++            if (itemstack1.getItem() == item) {
++                return true;
++            }
++        }
++        return false;
+     }
+ 
+     private static void a(World world, EntityLiving entityliving, EnumHand enumhand, ItemStack itemstack, ItemStack itemstack1, float f, boolean flag, float f1, float f2, float f3) {
+diff --git a/src/main/java/net/minecraft/server/ItemFireworks.java b/src/main/java/net/minecraft/server/ItemFireworks.java
+index 885c03f62da3b14bf7aeb31f1ae6a95bc9f86de1..886b6006c0691afb85de605bb4f5dfc05b440878 100644
+--- a/src/main/java/net/minecraft/server/ItemFireworks.java
++++ b/src/main/java/net/minecraft/server/ItemFireworks.java
+@@ -1,7 +1,9 @@
+ package net.minecraft.server;
+ 
++import java.util.ArrayList;
+ import java.util.Arrays;
+ import java.util.Comparator;
++import java.util.List;
+ 
+ public class ItemFireworks extends Item {
+ 
+@@ -58,11 +60,19 @@ public class ItemFireworks extends Item {
+ 
+         SMALL_BALL(0, "small_ball"), LARGE_BALL(1, "large_ball"), STAR(2, "star"), CREEPER(3, "creeper"), BURST(4, "burst");
+ 
+-        private static final ItemFireworks.EffectType[] f = (ItemFireworks.EffectType[]) Arrays.stream(values()).sorted(Comparator.comparingInt((itemfireworks_effecttype) -> {
+-            return itemfireworks_effecttype.g;
+-        })).toArray((i) -> {
+-            return new ItemFireworks.EffectType[i];
+-        });
++        private static final ItemFireworks.EffectType[] f;
++
++        static {
++            List<EffectType> list = new ArrayList<>();
++            for (EffectType effectType : values()) {
++                list.add(effectType);
++            }
++            list.sort(Comparator.comparingInt((itemfireworks_effecttype) -> {
++                return itemfireworks_effecttype.g;
++            }));
++            f = (EffectType[]) list.toArray(new EffectType[0]);
++        }
++
+         private final int g;
+         private final String h;
+ 
+diff --git a/src/main/java/net/minecraft/server/LightEngineThreaded.java b/src/main/java/net/minecraft/server/LightEngineThreaded.java
+index 968a1f71a44122ef0c4236d4251497f0b813d3b9..ecd77286359d00f842ecd8d6c4182caa4af7613e 100644
+--- a/src/main/java/net/minecraft/server/LightEngineThreaded.java
++++ b/src/main/java/net/minecraft/server/LightEngineThreaded.java
+@@ -288,10 +288,14 @@ public class LightEngineThreaded extends LightEngine implements AutoCloseable {
+         int i = Math.min(queue.size(), 4);
+         boolean ran = false;
+         while (i-- > 0 && queue.poll(pre, post)) {
+-            pre.forEach(Runnable::run);
++            for (Runnable runnable1 : pre) {
++                runnable1.run();
++            }
+             pre.clear();
+             super.a(Integer.MAX_VALUE, true, true);
+-            post.forEach(Runnable::run);
++            for (Runnable runnable : post) {
++                runnable.run();
++            }
+             post.clear();
+             ran = true;
+         }
+diff --git a/src/main/java/net/minecraft/server/LootTable.java b/src/main/java/net/minecraft/server/LootTable.java
+index 9922c8b2a7fbb55cfb8b9cea9545c9ec0a0dcbf8..424144fc4c2fdec628ff0c0207f21b0c56d96501 100644
+--- a/src/main/java/net/minecraft/server/LootTable.java
++++ b/src/main/java/net/minecraft/server/LootTable.java
+@@ -9,10 +9,7 @@ import com.google.gson.JsonParseException;
+ import com.google.gson.JsonSerializationContext;
+ import com.google.gson.JsonSerializer;
+ import java.lang.reflect.Type;
+-import java.util.Collections;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Random;
++import java.util.*;
+ import java.util.function.BiFunction;
+ import java.util.function.Consumer;
+ import org.apache.commons.lang3.ArrayUtils;
+@@ -122,7 +119,12 @@ public class LootTable {
+         if (event.isCancelled()) {
+             return;
+         }
+-        list = event.getLoot().stream().map(CraftItemStack::asNMSCopy).collect(Collectors.toList());
++        List<ItemStack> result = new ArrayList<>();
++        for (org.bukkit.inventory.ItemStack itemStack : event.getLoot()) {
++            ItemStack stack = CraftItemStack.asNMSCopy(itemStack);
++            result.add(stack);
++        }
++        list = result;
+         // CraftBukkit end
+         List<Integer> list1 = this.a(iinventory, random);
+ 
+diff --git a/src/main/java/net/minecraft/server/LootTableRegistry.java b/src/main/java/net/minecraft/server/LootTableRegistry.java
+index c8837b216161bc2625a0cdaf83cc234d09386786..43452f663eab54e094e8feab1e9f2266efe82e16 100644
+--- a/src/main/java/net/minecraft/server/LootTableRegistry.java
++++ b/src/main/java/net/minecraft/server/LootTableRegistry.java
+@@ -35,16 +35,18 @@ public class LootTableRegistry extends ResourceDataJson {
+             LootTableRegistry.LOGGER.warn("Datapack tried to redefine {} loot table, ignoring", LootTables.a);
+         }
+ 
+-        map.forEach((minecraftkey, jsonelement1) -> {
++        for (Map.Entry<MinecraftKey, JsonElement> mapEntry : map.entrySet()) {
++            MinecraftKey k = mapEntry.getKey();
++            JsonElement jsonelement1 = mapEntry.getValue();
+             try {
+-                LootTable loottable = (LootTable) LootTableRegistry.b.fromJson(jsonelement1, LootTable.class);
++                LootTable loottable = LootTableRegistry.b.fromJson(jsonelement1, LootTable.class);
+ 
+-                builder.put(minecraftkey, loottable);
++                builder.put(k, loottable);
+             } catch (Exception exception) {
+-                LootTableRegistry.LOGGER.error("Couldn't parse loot table {}", minecraftkey, exception);
++                LootTableRegistry.LOGGER.error("Couldn't parse loot table {}", k, exception);
+             }
+ 
+-        });
++        }
+         builder.put(LootTables.a, LootTable.EMPTY);
+         ImmutableMap<MinecraftKey, LootTable> immutablemap = builder.build();
+         LootContextParameterSet lootcontextparameterset = LootContextParameterSets.GENERIC;
+@@ -56,16 +58,23 @@ public class LootTableRegistry extends ResourceDataJson {
+         immutablemap.getClass();
+         LootCollector lootcollector = new LootCollector(lootcontextparameterset, function, immutablemap::get);
+ 
+-        immutablemap.forEach((minecraftkey, loottable) -> {
++        for (Map.Entry<MinecraftKey, LootTable> e : immutablemap.entrySet()) {
++            MinecraftKey minecraftkey = e.getKey();
++            LootTable loottable = e.getValue();
+             a(lootcollector, minecraftkey, loottable);
+-        });
++        }
+         lootcollector.a().forEach((s, s1) -> {
+             LootTableRegistry.LOGGER.warn("Found validation problem in " + s + ": " + s1);
+         });
+         this.c = immutablemap;
+         // CraftBukkit start - build a reversed registry map
+         ImmutableMap.Builder<LootTable, MinecraftKey> lootTableToKeyBuilder = ImmutableMap.builder();
+-        this.c.forEach((lootTable, key) -> lootTableToKeyBuilder.put(key, lootTable)); // PAIL rename keyToLootTable
++        // PAIL rename keyToLootTable
++        for (Map.Entry<MinecraftKey, LootTable> entry : this.c.entrySet()) {
++            MinecraftKey lootTable = entry.getKey();
++            LootTable key = entry.getValue();
++            lootTableToKeyBuilder.put(key, lootTable);
++        }
+         this.lootTableToKey = lootTableToKeyBuilder.build();
+         // CraftBukkit end
+     }
+diff --git a/src/main/java/net/minecraft/server/MCUtil.java b/src/main/java/net/minecraft/server/MCUtil.java
+index a29d54c775feb8a5d872b934aa8360cd70085b2c..1f18fe3d9df6ea7582b1ec48f6b3a301f8e2fc0a 100644
+--- a/src/main/java/net/minecraft/server/MCUtil.java
++++ b/src/main/java/net/minecraft/server/MCUtil.java
+@@ -76,7 +76,9 @@ public final class MCUtil {
+ 
+     public static <T> Runnable once(List<T> list, Consumer<T> cb) {
+         return once(() -> {
+-            list.forEach(cb);
++            for (T t : list) {
++                cb.accept(t);
++            }
+         });
+     }
+ 
+@@ -107,7 +109,9 @@ public final class MCUtil {
+      */
+     public static <T> Runnable registerListCleaner(Object obj, List<T> list, Consumer<T> cleaner) {
+         return registerCleaner(obj, () -> {
+-            list.forEach(cleaner);
++            for (T t : list) {
++                cleaner.accept(t);
++            }
+             list.clear();
+         });
+     }
+@@ -243,7 +247,9 @@ public final class MCUtil {
+                 all.addAll(set);
+             }
+         }
+-        all.forEach(consumer);
++        for (T t : all) {
++            consumer.accept(t);
++        }
+     }
+ 
+     private MCUtil() {}
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 7b27fb83acdb2792c16659f4301a356f33421f71..95324310781f7ef42a7210d2cb4c2187cc0841cf 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -33,21 +33,8 @@ import java.nio.charset.StandardCharsets;
+ import java.nio.file.Files;
+ import java.security.KeyPair;
+ import java.text.SimpleDateFormat;
+-import java.util.Arrays;
+-import java.util.Base64;
+-import java.util.Collection;
+-import java.util.Collections;
+-import java.util.Comparator;
+-import java.util.Date;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Map;
++import java.util.*;
+ import java.util.Map.Entry;
+-import java.util.Objects;
+-import java.util.Optional;
+-import java.util.Random;
+-import java.util.Set;
+-import java.util.UUID;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.concurrent.Executor;
+ import java.util.concurrent.atomic.AtomicReference;
+@@ -456,7 +443,13 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+ 
+         // Paper start - Handle collideRule team for player collision toggle
+         final Scoreboard scoreboard = this.getScoreboard();
+-        final java.util.Collection<String> toRemove = scoreboard.getTeams().stream().filter(team -> team.getName().startsWith("collideRule_")).map(ScoreboardTeam::getName).collect(java.util.stream.Collectors.toList());
++        final Collection<String> toRemove = new ArrayList<>();
++        for (ScoreboardTeam team : scoreboard.getTeams()) {
++            if (team.getName().startsWith("collideRule_")) {
++                String name = team.getName();
++                toRemove.add(name);
++            }
++        }
+         for (String teamName : toRemove) {
+             scoreboard.removeTeam(scoreboard.getTeam(teamName)); // Clean up after ourselves
+         }
+@@ -1609,7 +1602,9 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+ 
+     public void b(boolean flag) {
+         this.saveData.d(flag);
+-        this.getPlayerList().getPlayers().forEach(this::a);
++        for (EntityPlayer entityPlayer : this.getPlayerList().getPlayers()) {
++            a(entityPlayer);
++        }
+     }
+ 
+     private void a(EntityPlayer entityplayer) {
+diff --git a/src/main/java/net/minecraft/server/NameReferencingFileConverter.java b/src/main/java/net/minecraft/server/NameReferencingFileConverter.java
+index c5957c2d6c54b076ebe7f9a432e30551d2b6febc..376427eee7774a26da53ac041ae197bd982bafce 100644
+--- a/src/main/java/net/minecraft/server/NameReferencingFileConverter.java
++++ b/src/main/java/net/minecraft/server/NameReferencingFileConverter.java
+@@ -12,13 +12,7 @@ import java.io.File;
+ import java.io.IOException;
+ import java.nio.charset.StandardCharsets;
+ import java.text.ParseException;
+-import java.util.Collection;
+-import java.util.Date;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Locale;
+-import java.util.Map;
+-import java.util.UUID;
++import java.util.*;
+ import javax.annotation.Nullable;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+@@ -50,11 +44,13 @@ public class NameReferencingFileConverter {
+     }
+ 
+     private static void a(MinecraftServer minecraftserver, Collection<String> collection, ProfileLookupCallback profilelookupcallback) {
+-        String[] astring = (String[]) collection.stream().filter((s) -> {
+-            return !UtilColor.b(s);
+-        }).toArray((i) -> {
+-            return new String[i];
+-        });
++        List<String> list = new ArrayList<>();
++        for (String s1 : collection) {
++            if (!UtilColor.b(s1)) {
++                list.add(s1);
++            }
++        }
++        String[] astring = (String[]) list.toArray(new String[0]);
+ 
+         if (minecraftserver.getOnlineMode()
+                 || (com.destroystokyo.paper.PaperConfig.isProxyOnlineMode())) { // Spigot: bungee = online mode, for now.  // Paper - Handle via setting
+diff --git a/src/main/java/net/minecraft/server/NetworkManager.java b/src/main/java/net/minecraft/server/NetworkManager.java
+index fa208a1959ca63b8de2f1efca76cbc9b538db118..ac1309236e5b3a5072452d5e62e8bfa0bd8dd3db 100644
+--- a/src/main/java/net/minecraft/server/NetworkManager.java
++++ b/src/main/java/net/minecraft/server/NetworkManager.java
+@@ -442,12 +442,12 @@ public class NetworkManager extends SimpleChannelInboundHandler<Packet<?>> {
+     // Paper start
+     public void clearPacketQueue() {
+         EntityPlayer player = getPlayer();
+-        packetQueue.forEach(queuedPacket -> {
++        for (QueuedPacket queuedPacket : packetQueue) {
+             Packet<?> packet = queuedPacket.getPacket();
+             if (packet.hasFinishListener()) {
+                 packet.onPacketDispatchFinish(player, null);
+             }
+-        });
++        }
+         packetQueue.clear();
+     } // Paper end
+     public void close(IChatBaseComponent ichatbasecomponent) {
+diff --git a/src/main/java/net/minecraft/server/PathfinderGoalSelector.java b/src/main/java/net/minecraft/server/PathfinderGoalSelector.java
+index aaa68ea89d043c736a2a1b258c8ab5881c878837..f11a23d665c3dcc5222fe5a4ae5d306319af79d7 100644
+--- a/src/main/java/net/minecraft/server/PathfinderGoalSelector.java
++++ b/src/main/java/net/minecraft/server/PathfinderGoalSelector.java
+@@ -94,12 +94,14 @@ public class PathfinderGoalSelector {
+             wrappedGoal.d();
+         }
+         // Paper end - remove streams from pathfindergoalselector
+-        this.c.forEach((pathfindergoal_type, pathfindergoalwrapped) -> {
++        for (Map.Entry<PathfinderGoal.Type, PathfinderGoalWrapped> entry : this.c.entrySet()) {
++            PathfinderGoal.Type pathfindergoal_type = entry.getKey();
++            PathfinderGoalWrapped pathfindergoalwrapped = entry.getValue();
+             if (!pathfindergoalwrapped.g()) {
+                 this.c.remove(pathfindergoal_type);
+             }
+ 
+-        });
++        }
+         //gameprofilerfiller.exit(); // Akarin - remove caller
+         //gameprofilerfiller.enter("goalUpdate"); // Akarin - remove caller
+         // Paper start - remove streams from pathfindergoalselector
+diff --git a/src/main/java/net/minecraft/server/PiglinAI.java b/src/main/java/net/minecraft/server/PiglinAI.java
+index e76c7a96fa0ab4e28eed591cbcca65c1fd5e02fa..313c383920213cc1eb5525dab4a1665a087abf6f 100644
+--- a/src/main/java/net/minecraft/server/PiglinAI.java
++++ b/src/main/java/net/minecraft/server/PiglinAI.java
+@@ -358,16 +358,18 @@ public class PiglinAI {
+     public static void a(EntityHuman entityhuman, boolean flag) {
+         List<EntityPiglin> list = entityhuman.world.a(EntityPiglin.class, entityhuman.getBoundingBox().g(16.0D));
+ 
+-        list.stream().filter(PiglinAI::k).filter((entitypiglin) -> {
+-            return !flag || BehaviorUtil.c(entitypiglin, entityhuman);
+-        }).forEach((entitypiglin) -> {
+-            if (entitypiglin.world.getGameRules().getBoolean(GameRules.UNIVERSAL_ANGER)) {
+-                f(entitypiglin, entityhuman);
+-            } else {
+-                c(entitypiglin, (EntityLiving) entityhuman);
+-            }
++        for (EntityPiglin entitypiglin : list) {
++            if (k(entitypiglin)) {
++                if (!flag || BehaviorUtil.c(entitypiglin, entityhuman)) {
++                    if (entitypiglin.world.getGameRules().getBoolean(GameRules.UNIVERSAL_ANGER)) {
++                        f(entitypiglin, entityhuman);
++                    } else {
++                        c(entitypiglin, entityhuman);
++                    }
+ 
+-        });
++                }
++            }
++        }
+     }
+ 
+     public static EnumInteractionResult a(EntityPiglin entitypiglin, EntityHuman entityhuman, EnumHand enumhand) {
+@@ -459,9 +461,13 @@ public class PiglinAI {
+     }
+ 
+     protected static boolean e(EntityPiglin entitypiglin) {
+-        return entitypiglin.getBehaviorController().hasMemory(MemoryModuleType.HUNTED_RECENTLY) || q(entitypiglin).stream().anyMatch((entitypiglin1) -> {
+-            return entitypiglin1.getBehaviorController().hasMemory(MemoryModuleType.HUNTED_RECENTLY);
+-        });
++        if (entitypiglin.getBehaviorController().hasMemory(MemoryModuleType.HUNTED_RECENTLY)) return true;
++        for (EntityPiglin entitypiglin1 : q(entitypiglin)) {
++            if (entitypiglin1.getBehaviorController().hasMemory(MemoryModuleType.HUNTED_RECENTLY)) {
++                return true;
++            }
++        }
++        return false;
+     }
+ 
+     private static List<EntityPiglin> q(EntityPiglin entitypiglin) {
+@@ -501,23 +507,25 @@ public class PiglinAI {
+     }
+ 
+     protected static void b(EntityPiglin entitypiglin, EntityLiving entityliving) {
+-        r(entitypiglin).forEach((entitypiglin1) -> {
++        for (EntityPiglin entitypiglin1 : r(entitypiglin)) {
+             if (entityliving.getEntityType() != EntityTypes.HOGLIN || entitypiglin1.eN() && ((EntityHoglin) entityliving).eP()) {
+                 g(entitypiglin1, entityliving);
+             }
+-        });
++        }
+     }
+ 
+     protected static void f(EntityPiglin entitypiglin) {
+-        r(entitypiglin).forEach((entitypiglin1) -> {
++        for (EntityPiglin entitypiglin1 : r(entitypiglin)) {
+             i(entitypiglin1).ifPresent((entityhuman) -> {
+-                c(entitypiglin1, (EntityLiving) entityhuman);
++                c(entitypiglin1, entityhuman);
+             });
+-        });
++        }
+     }
+ 
+     protected static void g(EntityPiglin entitypiglin) {
+-        q(entitypiglin).forEach(PiglinAI::j);
++        for (EntityPiglin entityPiglin : q(entitypiglin)) {
++            j(entityPiglin);
++        }
+     }
+ 
+     protected static void c(EntityPiglin entitypiglin, EntityLiving entityliving) {
+@@ -568,9 +576,9 @@ public class PiglinAI {
+     }
+ 
+     private static void h(EntityPiglin entitypiglin, EntityLiving entityliving) {
+-        q(entitypiglin).forEach((entitypiglin1) -> {
++        for (EntityPiglin entitypiglin1 : q(entitypiglin)) {
+             i(entitypiglin1, entityliving);
+-        });
++        }
+     }
+ 
+     private static void i(EntityPiglin entitypiglin, EntityLiving entityliving) {
+diff --git a/src/main/java/net/minecraft/server/PlayerChunk.java b/src/main/java/net/minecraft/server/PlayerChunk.java
+index a483ec0e2b389903cf693ac7d018fce158d740d2..00a9250d485e40d36e3156f59c7306949770bd60 100644
+--- a/src/main/java/net/minecraft/server/PlayerChunk.java
++++ b/src/main/java/net/minecraft/server/PlayerChunk.java
+@@ -2,6 +2,7 @@ package net.minecraft.server;
+ 
+ import com.mojang.datafixers.util.Either;
+ import java.util.List;
++import java.util.Map;
+ import java.util.Optional;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.concurrent.atomic.AtomicReferenceArray;
+@@ -745,7 +746,11 @@ public class PlayerChunk {
+         if (getCurrentPriority() != priority) {
+             this.v.a(this.location, this::getCurrentPriority, priority, this::setPriority); // use preferred priority
+             int neighborsPriority = getNeighborsPriority();
+-            this.neighbors.forEach((neighbor, neighborDesired) -> neighbor.setNeighborPriority(this, neighborsPriority));
++            for (Map.Entry<PlayerChunk, ChunkStatus> entry : this.neighbors.entrySet()) {
++                PlayerChunk neighbor = entry.getKey();
++                ChunkStatus neighborDesired = entry.getValue();
++                neighbor.setNeighborPriority(this, neighborsPriority);
++            }
+         }
+         // Paper end
+         this.oldTicketLevel = this.ticketLevel;
+diff --git a/src/main/java/net/minecraft/server/PlayerChunkMap.java b/src/main/java/net/minecraft/server/PlayerChunkMap.java
+index 5f61fadb8f72cbbaa08804b8d7e5ce75dc0c6197..ea097a7a6d86a1e924615b6fd28684e6645e8f56 100644
+--- a/src/main/java/net/minecraft/server/PlayerChunkMap.java
++++ b/src/main/java/net/minecraft/server/PlayerChunkMap.java
+@@ -24,17 +24,8 @@ import it.unimi.dsi.fastutil.objects.ObjectIterator;
+ import java.io.File;
+ import java.io.IOException;
+ import java.io.Writer;
+-import java.util.HashMap; // Paper
+-import java.util.Collection;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Map; // Paper
+-import java.util.Objects;
+-import java.util.Optional;
+-import java.util.Queue;
+-import java.util.Set;
++import java.util.*;
+ import java.util.concurrent.CancellationException;
+-import java.util.UUID; // Paper
+ import java.util.concurrent.CompletableFuture;
+ import java.util.concurrent.CompletionException;
+ import java.util.concurrent.Executor;
+@@ -480,53 +471,53 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+         double playerChunkZ = MathHelper.floor(player.locZ()) >> 4;
+         pos.setValues(player.locX(), 0, player.locZ());
+         double twoThirdModifier = 2D / 3D;
+-        MCUtil.getSpiralOutChunks(pos, Math.min(6, viewDistance)).forEach(coord -> {
+-            if (shouldSkipPrioritization(coord)) return;
++        for (ChunkCoordIntPair coordIntPair : MCUtil.getSpiralOutChunks(pos, Math.min(6, viewDistance))) {
++            if (shouldSkipPrioritization(coordIntPair)) continue;
+ 
+-            double dist = MCUtil.distance(playerChunkX, 0, playerChunkZ, coord.x, 0, coord.z);
++            double dist = MCUtil.distance(playerChunkX, 0, playerChunkZ, coordIntPair.x, 0, coordIntPair.z);
+             // Prioritize immediate
+             if (dist <= 4 * 4) {
+-                updateChunkPriorityMap(priorities, coord.pair(), (int) (27 - Math.sqrt(dist)));
+-                return;
++                updateChunkPriorityMap(priorities, coordIntPair.pair(), (int) (27 - Math.sqrt(dist)));
++                continue;
+             }
+ 
+             // Prioritize nearby chunks
+-            updateChunkPriorityMap(priorities, coord.pair(), (int) (20 - Math.sqrt(dist) * twoThirdModifier));
+-        });
++            updateChunkPriorityMap(priorities, coordIntPair.pair(), (int) (20 - Math.sqrt(dist) * twoThirdModifier));
++        }
+ 
+         // Prioritize Frustum near 3
+         ChunkCoordIntPair front3 = player.getChunkInFront(3);
+         pos.setValues(front3.x << 4, 0, front3.z << 4);
+-        MCUtil.getSpiralOutChunks(pos, Math.min(5, viewDistance)).forEach(coord -> {
+-            if (shouldSkipPrioritization(coord)) return;
++        for (ChunkCoordIntPair chunkCoordIntPair : MCUtil.getSpiralOutChunks(pos, Math.min(5, viewDistance))) {
++            if (shouldSkipPrioritization(chunkCoordIntPair)) continue;
+ 
+-            double dist = MCUtil.distance(playerChunkX, 0, playerChunkZ, coord.x, 0, coord.z);
+-            updateChunkPriorityMap(priorities, coord.pair(), (int) (25 - Math.sqrt(dist) * twoThirdModifier));
+-        });
++            double dist = MCUtil.distance(playerChunkX, 0, playerChunkZ, chunkCoordIntPair.x, 0, chunkCoordIntPair.z);
++            updateChunkPriorityMap(priorities, chunkCoordIntPair.pair(), (int) (25 - Math.sqrt(dist) * twoThirdModifier));
++        }
+ 
+         // Prioritize Frustum near 5
+         if (viewDistance > 4) {
+             ChunkCoordIntPair front5 = player.getChunkInFront(5);
+             pos.setValues(front5.x << 4, 0, front5.z << 4);
+-            MCUtil.getSpiralOutChunks(pos, 4).forEach(coord -> {
+-                if (shouldSkipPrioritization(coord)) return;
++            for (ChunkCoordIntPair coord : MCUtil.getSpiralOutChunks(pos, 4)) {
++                if (shouldSkipPrioritization(coord)) continue;
+ 
+                 double dist = MCUtil.distance(playerChunkX, 0, playerChunkZ, coord.x, 0, coord.z);
+                 updateChunkPriorityMap(priorities, coord.pair(), (int) (25 - Math.sqrt(dist) * twoThirdModifier));
+-            });
++            }
+         }
+ 
+         // Prioritize Frustum far 7
+         if (viewDistance > 6) {
+             ChunkCoordIntPair front7 = player.getChunkInFront(7);
+             pos.setValues(front7.x << 4, 0, front7.z << 4);
+-            MCUtil.getSpiralOutChunks(pos, 3).forEach(coord -> {
++            for (ChunkCoordIntPair coord : MCUtil.getSpiralOutChunks(pos, 3)) {
+                 if (shouldSkipPrioritization(coord)) {
+-                    return;
++                    continue;
+                 }
+                 double dist = MCUtil.distance(playerChunkX, 0, playerChunkZ, coord.x, 0, coord.z);
+                 updateChunkPriorityMap(priorities, coord.pair(), (int) (25 - Math.sqrt(dist) * twoThirdModifier));
+-            });
++            }
+         }
+ 
+         pos.close();
+@@ -852,7 +843,14 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+     protected void save(boolean flag) {
+         Long2ObjectLinkedOpenHashMap<PlayerChunk> visibleChunks = this.getVisibleChunks(); // Paper remove clone of visible Chunks unless saving off main thread (watchdog kill)
+         if (flag) {
+-            List<PlayerChunk> list = (List) visibleChunks.values().stream().filter(PlayerChunk::hasBeenLoaded).peek(PlayerChunk::m).collect(Collectors.toList()); // Paper - remove cloning of visible chunks
++            List<PlayerChunk> result = new ArrayList<>();
++            for (PlayerChunk playerChunk : visibleChunks.values()) {
++                if (playerChunk.hasBeenLoaded()) {
++                    playerChunk.m();
++                    result.add(playerChunk);
++                }
++            }
++            List<PlayerChunk> list = (List) result; // Paper - remove cloning of visible chunks
+             MutableBoolean mutableboolean = new MutableBoolean();
+ 
+             do {
+@@ -881,15 +879,17 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+ //            this.i(); // Paper - nuke IOWorker
+             PlayerChunkMap.LOGGER.info("ThreadedAnvilChunkStorage ({}): All chunks are saved", this.w.getName());
+         } else {
+-            visibleChunks.values().stream().filter(PlayerChunk::hasBeenLoaded).forEach((playerchunk) -> {
+-                IChunkAccess ichunkaccess = (IChunkAccess) playerchunk.getChunkSave().getNow(null); // CraftBukkit - decompile error
++            for (PlayerChunk playerchunk : visibleChunks.values()) {
++                if (playerchunk.hasBeenLoaded()) {
++                    IChunkAccess ichunkaccess = playerchunk.getChunkSave().getNow(null); // CraftBukkit - decompile error
+ 
+-                if (ichunkaccess instanceof ProtoChunkExtension || ichunkaccess instanceof Chunk) {
+-                    this.saveChunk(ichunkaccess);
+-                    playerchunk.m();
+-                }
++                    if (ichunkaccess instanceof ProtoChunkExtension || ichunkaccess instanceof Chunk) {
++                        this.saveChunk(ichunkaccess);
++                        playerchunk.m();
++                    }
+ 
+-            });
++                }
++            }
+         }
+ 
+     }
+@@ -979,8 +979,17 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+                         return;
+                     }
+ 
+-                    if (chunkstatus == ChunkStatus.EMPTY && chunk.h().values().stream().noneMatch(StructureStart::e)) {
+-                        return;
++                    if (chunkstatus == ChunkStatus.EMPTY) {
++                        boolean result = true;
++                        for (StructureStart<?> structureStart : chunk.h().values()) {
++                            if (structureStart.e()) {
++                                result = false;
++                                break;
++                            }
++                        }
++                        if (result) {
++                            return;
++                        }
+                     }
+                 } catch (IOException ex) {
+                     ex.printStackTrace();
+@@ -1122,7 +1131,9 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+                 if (ioThrowable != null) {
+                     com.destroystokyo.paper.util.SneakyThrow.sneaky(ioThrowable);
+                 }
+-                chunkHolder.tasks.forEach(Runnable::run);
++                for (Runnable task : chunkHolder.tasks) {
++                    task.run();
++                }
+                 // Paper end
+ 
+                 if (chunkHolder.protoChunk != null) {try (Timing ignored2 = this.world.timings.chunkLoadLevelTimer.startTimingIfSync()) { // Paper start - timings // Paper - chunk is created async
+@@ -1317,7 +1328,9 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+                     }
+ 
+                     if (list != null) {
+-                        list.forEach(chunk::b);
++                        for (Entity entity : list) {
++                            chunk.b(entity);
++                        }
+                     }
+                 }
+ 
+@@ -1435,8 +1448,17 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+                         return false;
+                     }
+ 
+-                    if (chunkstatus == ChunkStatus.EMPTY && ichunkaccess.h().values().stream().noneMatch(StructureStart::e)) {
+-                        return false;
++                    if (chunkstatus == ChunkStatus.EMPTY) {
++                        boolean result = true;
++                        for (StructureStart<?> structureStart : ichunkaccess.h().values()) {
++                            if (structureStart.e()) {
++                                result = false;
++                                break;
++                            }
++                        }
++                        if (result) {
++                            return false;
++                        }
+                     }
+                     } // Paper
+                 }
+@@ -1574,7 +1596,12 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+ 
+             // CraftBukkit - decompile error
+             csvwriter.a(chunkcoordintpair.x, chunkcoordintpair.z, playerchunk.getTicketLevel(), optional.isPresent(), optional.map(IChunkAccess::getChunkStatus).orElse(null), optional1.map(Chunk::getState).orElse(null), a(playerchunk.c()), a(playerchunk.a()), a(playerchunk.b()), this.chunkDistanceManager.c(entry.getLongKey()), !this.isOutsideOfRange(chunkcoordintpair), optional1.map((chunk) -> {
+-                return Stream.of(chunk.getEntitySlices()).mapToInt(List::size).sum(); // Spigot
++                int sum = 0;
++                for (List<Entity> entities : chunk.getEntitySlices()) {
++                    int size = entities.size();
++                    sum += size;
++                }
++                return sum; // Spigot
+             }).orElse(0), optional1.map((chunk) -> {
+                 return chunk.getTileEntities().size();
+             }).orElse(0));
+diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
+index e87a91f7313d45a2056f72d4727a6da849df01fc..cc439425b041f7c6a56e57f3ed142435a2793b09 100644
+--- a/src/main/java/net/minecraft/server/PlayerConnection.java
++++ b/src/main/java/net/minecraft/server/PlayerConnection.java
+@@ -605,7 +605,9 @@ public class PlayerConnection implements PacketListenerPlayIn {
+             com.mojang.brigadier.suggestion.SuggestionsBuilder builder = new com.mojang.brigadier.suggestion.SuggestionsBuilder(packetplayintabcomplete.c(), stringreader.getTotalLength());
+ 
+             builder = builder.createOffset(builder.getInput().lastIndexOf(' ') + 1);
+-            completions.forEach(builder::suggest);
++            for (String completion : completions) {
++                builder.suggest(completion);
++            }
+             com.mojang.brigadier.suggestion.Suggestions suggestions = builder.buildFuture().join();
+             com.destroystokyo.paper.event.brigadier.AsyncPlayerSendSuggestionsEvent suggestEvent = new com.destroystokyo.paper.event.brigadier.AsyncPlayerSendSuggestionsEvent(this.getPlayer(), suggestions, buffer);
+             suggestEvent.setCancelled(suggestions.isEmpty());
+diff --git a/src/main/java/net/minecraft/server/PortalTravelAgent.java b/src/main/java/net/minecraft/server/PortalTravelAgent.java
+index f6ec165f9c7d83698100c85b1d4bf6b4cea0f458..68f693de5eaa5eaa8dc65230ffa95556530c2368 100644
+--- a/src/main/java/net/minecraft/server/PortalTravelAgent.java
++++ b/src/main/java/net/minecraft/server/PortalTravelAgent.java
+@@ -57,11 +57,20 @@ public class PortalTravelAgent {
+         List<VillagePlaceRecord> list = (List) villageplace.b((villageplacetype) -> {
+             return villageplacetype == VillagePlaceType.v;
+         }, blockposition, searchRadius, VillagePlace.Occupancy.ANY).collect(Collectors.toList()); // CraftBukkit - searchRadius
+-        Optional<VillagePlaceRecord> optional = list.stream().min(Comparator.<VillagePlaceRecord>comparingDouble((villageplacerecord) -> { // CraftBukkit - decompile error
++        boolean seen = false;
++        VillagePlaceRecord best = null;
++        Comparator<VillagePlaceRecord> comparator = Comparator.<VillagePlaceRecord>comparingDouble((villageplacerecord) -> { // CraftBukkit - decompile error
+             return villageplacerecord.f().j(blockposition);
+         }).thenComparingInt((villageplacerecord) -> {
+             return villageplacerecord.f().getY();
+-        }));
++        });
++        for (VillagePlaceRecord villagePlaceRecord : list) {
++            if (!seen || comparator.compare(villagePlaceRecord, best) < 0) {
++                seen = true;
++                best = villagePlaceRecord;
++            }
++        }
++        Optional<VillagePlaceRecord> optional = seen ? Optional.of(best) : Optional.empty();
+ 
+         return (ShapeDetector.Shape) optional.map((villageplacerecord) -> {
+             BlockPosition blockposition1 = villageplacerecord.f();
+diff --git a/src/main/java/net/minecraft/server/Raid.java b/src/main/java/net/minecraft/server/Raid.java
+index dea799de35ee137c5ff4a24f39c9c04e649cf3da..54731f78c844e5ae7484949f8621946de8562dea 100644
+--- a/src/main/java/net/minecraft/server/Raid.java
++++ b/src/main/java/net/minecraft/server/Raid.java
+@@ -566,7 +566,12 @@ public class Raid {
+     }
+ 
+     public int r() {
+-        return this.raiders.values().stream().mapToInt(Set::size).sum();
++        int sum = 0;
++        for (Set<EntityRaider> entityRaiders : this.raiders.values()) {
++            int size = entityRaiders.size();
++            sum += size;
++        }
++        return sum;
+     }
+ 
+     public void a(EntityRaider entityraider, boolean flag) {
+@@ -781,7 +786,13 @@ public class Raid {
+ 
+     // CraftBukkit start - a method to get all raiders
+     public java.util.Collection<EntityRaider> getRaiders() {
+-        return this.raiders.values().stream().flatMap(Set::stream).collect(java.util.stream.Collectors.toSet());
++        Set<EntityRaider> set = new HashSet<>();
++        for (Set<EntityRaider> entityRaiders : this.raiders.values()) {
++            for (EntityRaider entityRaider : entityRaiders) {
++                set.add(entityRaider);
++            }
++        }
++        return set;
+     }
+     // CraftBukkit end
+ 
+diff --git a/src/main/java/net/minecraft/server/RecipeItemStack.java b/src/main/java/net/minecraft/server/RecipeItemStack.java
+index 91f7852bcf80d9a1f2e6aefd3da8d1f4556b042a..31a06a908234f8d98c90ded33ba14c281a40db81 100644
+--- a/src/main/java/net/minecraft/server/RecipeItemStack.java
++++ b/src/main/java/net/minecraft/server/RecipeItemStack.java
+@@ -9,11 +9,8 @@ import com.google.gson.JsonSyntaxException;
+ import it.unimi.dsi.fastutil.ints.IntArrayList;
+ import it.unimi.dsi.fastutil.ints.IntComparators;
+ import it.unimi.dsi.fastutil.ints.IntList;
+-import java.util.Arrays;
+-import java.util.Collection;
+-import java.util.Collections;
+-import java.util.Iterator;
+-import java.util.List;
++
++import java.util.*;
+ import java.util.function.Predicate;
+ import java.util.stream.Stream;
+ import java.util.stream.StreamSupport;
+@@ -35,11 +32,16 @@ public final class RecipeItemStack implements Predicate<ItemStack> {
+ 
+     public void buildChoices() {
+         if (this.choices == null) {
+-            this.choices = (ItemStack[]) Arrays.stream(this.b).flatMap((recipeitemstack_provider) -> {
+-                return recipeitemstack_provider.a().stream();
+-            }).distinct().toArray((i) -> {
+-                return new ItemStack[i];
+-            });
++            List<ItemStack> list = new ArrayList<>();
++            Set<ItemStack> uniqueValues = new HashSet<>();
++            for (Provider recipeitemstack_provider : this.b) {
++                for (ItemStack itemStack : recipeitemstack_provider.a()) {
++                    if (uniqueValues.add(itemStack)) {
++                        list.add(itemStack);
++                    }
++                }
++            }
++            this.choices = (ItemStack[]) list.toArray(new ItemStack[0]);
+         }
+ 
+     }
+diff --git a/src/main/java/net/minecraft/server/RegistryMaterials.java b/src/main/java/net/minecraft/server/RegistryMaterials.java
+index 79817e3ffcac372e00b92c5b6bcb44653fcb73db..ba36ab19dbb13c33c6b0cdc30b1109d01c84b1da 100644
+--- a/src/main/java/net/minecraft/server/RegistryMaterials.java
++++ b/src/main/java/net/minecraft/server/RegistryMaterials.java
+@@ -181,17 +181,22 @@ public class RegistryMaterials<T> extends IRegistryWritable<T> {
+         return Codec.unboundedMap(MinecraftKey.a.xmap(ResourceKey.a(resourcekey), ResourceKey::a), mapcodec.codec()).xmap((map) -> {
+             RegistryMaterials<T> registrymaterials = new RegistryMaterials<>(resourcekey, lifecycle);
+ 
+-            map.forEach((resourcekey1, object) -> {
++            for (Entry<ResourceKey<T>, T> entry : map.entrySet()) {
++                ResourceKey<T> resourcekey1 = entry.getKey();
++                T object = entry.getValue();
+                 registrymaterials.a(registrymaterials.bd, resourcekey1, object);
+                 registrymaterials.d(resourcekey1);
+-            });
++            }
+             return registrymaterials;
+         }, (registrymaterials) -> {
+             com.google.common.collect.ImmutableMap.Builder<ResourceKey<T>, T> com_google_common_collect_immutablemap_builder = ImmutableMap.builder();
+ 
+-            registrymaterials.bb.entrySet().stream().filter((entry) -> {
+-                return registrymaterials.c((ResourceKey) entry.getKey());
+-            }).forEach(entry1 -> com_google_common_collect_immutablemap_builder.put((java.util.Map.Entry<? extends net.minecraft.server.ResourceKey<T>,? extends T>) entry1)); // Paper - compiler fix (expand method reference + add cast)
++            // Paper - compiler fix (expand method reference + add cast)
++            for (Entry<ResourceKey<T>, T> entry : registrymaterials.bb.entrySet()) {
++                if (registrymaterials.c(entry.getKey())) {
++                    com_google_common_collect_immutablemap_builder.put(entry);
++                }
++            }
+             return com_google_common_collect_immutablemap_builder.build();
+         });
+     }
+diff --git a/src/main/java/net/minecraft/server/Reputation.java b/src/main/java/net/minecraft/server/Reputation.java
+index 28c9f9ed2d532a1eb14b74c2e9723a2cf1b3c6fa..6ae41f2a6c8bcde0214c9a12117ddbd294c84886 100644
+--- a/src/main/java/net/minecraft/server/Reputation.java
++++ b/src/main/java/net/minecraft/server/Reputation.java
+@@ -87,14 +87,14 @@ public class Reputation {
+     public void a(Reputation reputation, Random random, int i) {
+         Collection<Reputation.b> collection = reputation.a(random, i);
+ 
+-        collection.forEach((reputation_b) -> {
++        for (b reputation_b : collection) {
+             int j = reputation_b.c - reputation_b.b.j;
+ 
+             if (j >= 2) {
+                 this.a(reputation_b.a).a.mergeInt(reputation_b.b, j, Reputation::a);
+             }
+ 
+-        });
++        }
+     }
+ 
+     public int a(UUID uuid, Predicate<ReputationType> predicate) {
+@@ -149,11 +149,14 @@ public class Reputation {
+         }
+ 
+         public int a(Predicate<ReputationType> predicate) {
+-            return this.a.object2IntEntrySet().stream().filter((entry) -> {
+-                return predicate.test(entry.getKey());
+-            }).mapToInt((entry) -> {
+-                return entry.getIntValue() * ((ReputationType) entry.getKey()).g;
+-            }).sum();
++            int sum = 0;
++            for (Entry<ReputationType> entry : this.a.object2IntEntrySet()) {
++                if (predicate.test(entry.getKey())) {
++                    int i = entry.getIntValue() * entry.getKey().g;
++                    sum += i;
++                }
++            }
++            return sum;
+         }
+ 
+         public Stream<Reputation.b> a(UUID uuid) {
+diff --git a/src/main/java/net/minecraft/server/ServerGUI.java b/src/main/java/net/minecraft/server/ServerGUI.java
+index e51434f2323bcb9385d11e99d0438d66434e3e63..76ed8e87d3213080109205489c786d6bdbe08908 100644
+--- a/src/main/java/net/minecraft/server/ServerGUI.java
++++ b/src/main/java/net/minecraft/server/ServerGUI.java
+@@ -155,7 +155,9 @@ public class ServerGUI extends JComponent {
+     }
+ 
+     private void f() {
+-        this.e.forEach(Runnable::run);
++        for (Runnable runnable : this.e) {
++            runnable.run();
++        }
+     }
+ 
+     private static final java.util.regex.Pattern ANSI = java.util.regex.Pattern.compile("\\x1B\\[([0-9]{1,2}(;[0-9]{1,2})*)?[m|K]"); // CraftBukkit
+diff --git a/src/main/java/net/minecraft/server/SpawnerCreature.java b/src/main/java/net/minecraft/server/SpawnerCreature.java
+index c9c779acea482a87eee2628f552bc69227c00cbc..239af704d3a10a06186ac131164068c58e877da7 100644
+--- a/src/main/java/net/minecraft/server/SpawnerCreature.java
++++ b/src/main/java/net/minecraft/server/SpawnerCreature.java
+@@ -3,10 +3,8 @@ package net.minecraft.server;
+ import it.unimi.dsi.fastutil.objects.Object2IntMap;
+ import it.unimi.dsi.fastutil.objects.Object2IntMaps;
+ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Objects;
+-import java.util.Random;
++
++import java.util.*;
+ import java.util.function.Consumer;
+ import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+@@ -22,11 +20,17 @@ public final class SpawnerCreature {
+ 
+     private static final Logger LOGGER = LogManager.getLogger();
+     private static final int b = (int) Math.pow(17.0D, 2.0D);
+-    private static final EnumCreatureType[] c = (EnumCreatureType[]) Stream.of(EnumCreatureType.values()).filter((enumcreaturetype) -> {
+-        return enumcreaturetype != EnumCreatureType.MISC;
+-    }).toArray((i) -> {
+-        return new EnumCreatureType[i];
+-    });
++    private static final EnumCreatureType[] c;
++
++    static {
++        List<EnumCreatureType> list = new ArrayList<>();
++        for (EnumCreatureType enumcreaturetype : EnumCreatureType.values()) {
++            if (enumcreaturetype != EnumCreatureType.MISC) {
++                list.add(enumcreaturetype);
++            }
++        }
++        c = (EnumCreatureType[]) list.toArray(new EnumCreatureType[0]);
++    }
+ 
+     public static SpawnerCreature.d a(int i, Iterable<Entity> iterable, SpawnerCreature.b spawnercreature_b) {
+         // Paper start - add countMobs parameter
+diff --git a/src/main/java/net/minecraft/server/StructureManager.java b/src/main/java/net/minecraft/server/StructureManager.java
+index c434427ce7bd206ed5d2efa2560e593b1186c666..0afe2646555b3de7fdcc3c76b48a12aa0551276b 100644
+--- a/src/main/java/net/minecraft/server/StructureManager.java
++++ b/src/main/java/net/minecraft/server/StructureManager.java
+@@ -53,9 +53,13 @@ public class StructureManager {
+         return (StructureStart) DataFixUtils.orElse(this.a(SectionPosition.a(blockposition), structuregenerator).filter((structurestart) -> {
+             return structurestart.c().b((BaseBlockPosition) blockposition);
+         }).filter((structurestart) -> {
+-            return !flag || structurestart.d().stream().anyMatch((structurepiece) -> {
+-                return structurepiece.g().b((BaseBlockPosition) blockposition);
+-            });
++            if (!flag) return true;
++            for (StructurePiece structurepiece : structurestart.d()) {
++                if (structurepiece.g().b(blockposition)) {
++                    return true;
++                }
++            }
++            return false;
+         }).findFirst(), StructureStart.a);
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/SystemUtils.java b/src/main/java/net/minecraft/server/SystemUtils.java
+index e8075ad6b5395c7dce12741fe85dafd13f72cf41..91ebcea452707f5d64e2b61a76b42fcdbf40fdee 100644
+--- a/src/main/java/net/minecraft/server/SystemUtils.java
++++ b/src/main/java/net/minecraft/server/SystemUtils.java
+@@ -263,7 +263,7 @@ public class SystemUtils {
+         CompletableFuture<?>[] acompletablefuture = new CompletableFuture[list.size()];
+         CompletableFuture<Void> completablefuture = new CompletableFuture();
+ 
+-        list.forEach((completablefuture1) -> {
++        for (CompletableFuture<? extends V> completablefuture1 : list) {
+             int i = list1.size();
+ 
+             list1.add(null); // Paper - decompile fix
+@@ -275,7 +275,7 @@ public class SystemUtils {
+                 }
+ 
+             });
+-        });
++        }
+         return CompletableFuture.allOf(acompletablefuture).applyToEither(completablefuture, (ovoid) -> {
+             return list1;
+         });
+diff --git a/src/main/java/net/minecraft/server/TileEntityBeacon.java b/src/main/java/net/minecraft/server/TileEntityBeacon.java
+index 453f1301b4b4ed5024a2d608d119889f7805961f..e109223f3f445f8b7d881853206f7bba9fd05b8b 100644
+--- a/src/main/java/net/minecraft/server/TileEntityBeacon.java
++++ b/src/main/java/net/minecraft/server/TileEntityBeacon.java
+@@ -1,10 +1,8 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
+-import java.util.Arrays;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Set;
++
++import java.util.*;
+ import java.util.stream.Collectors;
+ import javax.annotation.Nullable;
+ 
+@@ -23,7 +21,18 @@ import com.destroystokyo.paper.event.block.BeaconEffectEvent;
+ public class TileEntityBeacon extends TileEntity implements ITileInventory, ITickable {
+ 
+     public static final MobEffectList[][] a = new MobEffectList[][]{{MobEffects.FASTER_MOVEMENT, MobEffects.FASTER_DIG}, {MobEffects.RESISTANCE, MobEffects.JUMP}, {MobEffects.INCREASE_DAMAGE}, {MobEffects.REGENERATION}};
+-    private static final Set<MobEffectList> b = (Set) Arrays.stream(TileEntityBeacon.a).flatMap(Arrays::stream).collect(Collectors.toSet());
++    private static final Set<MobEffectList> b;
++
++    static {
++        Set<MobEffectList> set = new HashSet<>();
++        for (MobEffectList[] mobEffectLists : TileEntityBeacon.a) {
++            for (MobEffectList mobEffectList : mobEffectLists) {
++                set.add(mobEffectList);
++            }
++        }
++        b = (Set) set;
++    }
++
+     private List<TileEntityBeacon.BeaconColorTracker> c = Lists.newArrayList();
+     private List<TileEntityBeacon.BeaconColorTracker> g = Lists.newArrayList();
+     public int levels;
+diff --git a/src/main/java/net/minecraft/server/TileEntityCampfire.java b/src/main/java/net/minecraft/server/TileEntityCampfire.java
+index 4e59659061bb1c36424c229cca9f937786e2cb28..1d002341652f34100c033b84afd958e0e6aace97 100644
+--- a/src/main/java/net/minecraft/server/TileEntityCampfire.java
++++ b/src/main/java/net/minecraft/server/TileEntityCampfire.java
+@@ -165,7 +165,12 @@ public class TileEntityCampfire extends TileEntity implements Clearable, ITickab
+     }
+ 
+     public Optional<RecipeCampfire> a(ItemStack itemstack) {
+-        return this.items.stream().noneMatch(ItemStack::isEmpty) ? Optional.empty() : this.world.getCraftingManager().craft(Recipes.CAMPFIRE_COOKING, new InventorySubcontainer(new ItemStack[]{itemstack}), this.world);
++        for (ItemStack item : this.items) {
++            if (item.isEmpty()) {
++                return this.world.getCraftingManager().craft(Recipes.CAMPFIRE_COOKING, new InventorySubcontainer(new ItemStack[]{itemstack}), this.world);
++            }
++        }
++        return Optional.empty();
+     }
+ 
+     public boolean a(ItemStack itemstack, int i) {
+diff --git a/src/main/java/net/minecraft/server/TileEntityFurnace.java b/src/main/java/net/minecraft/server/TileEntityFurnace.java
+index 59aa2f8a797482c43fd47d3bce936772ad3cd6aa..acc533ca8ad612cc439208f4adf6e3d3289c92c7 100644
+--- a/src/main/java/net/minecraft/server/TileEntityFurnace.java
++++ b/src/main/java/net/minecraft/server/TileEntityFurnace.java
+@@ -263,9 +263,11 @@ public abstract class TileEntityFurnace extends TileEntityContainer implements I
+         ContainerUtil.a(nbttagcompound, this.items);
+         NBTTagCompound nbttagcompound1 = new NBTTagCompound();
+ 
+-        this.n.forEach((minecraftkey, integer) -> {
++        for (Map.Entry<MinecraftKey, Integer> entry : this.n.entrySet()) {
++            MinecraftKey minecraftkey = entry.getKey();
++            Integer integer = entry.getValue();
+             nbttagcompound1.setInt(minecraftkey.toString(), integer);
+-        });
++        }
+         nbttagcompound.set("RecipesUsed", nbttagcompound1);
+         return nbttagcompound;
+     }
+diff --git a/src/main/java/net/minecraft/server/TileEntityShulkerBox.java b/src/main/java/net/minecraft/server/TileEntityShulkerBox.java
+index 0b0fd9043e8406db694208c9949a9b07449f9622..9d2b36f254286306e3f4ec00ea4ca1ec2a2bf76a 100644
+--- a/src/main/java/net/minecraft/server/TileEntityShulkerBox.java
++++ b/src/main/java/net/minecraft/server/TileEntityShulkerBox.java
+@@ -1,5 +1,6 @@
+ package net.minecraft.server;
+ 
++import java.util.Arrays;
+ import java.util.List;
+ import java.util.stream.IntStream;
+ import javax.annotation.Nullable;
+@@ -10,7 +11,19 @@ import org.bukkit.entity.HumanEntity;
+ 
+ public class TileEntityShulkerBox extends TileEntityLootable implements IWorldInventory, ITickable {
+ 
+-    private static final int[] a = IntStream.range(0, 27).toArray();
++    private static final int[] a;
++
++    static {
++        int[] arr = new int[10];
++        int count = 0;
++        for (int i1 = 0; i1 < 27; i1++) {
++            if (arr.length == count) arr = Arrays.copyOf(arr, count * 2);
++            arr[count++] = i1;
++        }
++        arr = Arrays.copyOfRange(arr, 0, count);
++        a = arr;
++    }
++
+     private NonNullList<ItemStack> contents;
+     private int c;
+     private TileEntityShulkerBox.AnimationPhase i;
+diff --git a/src/main/java/net/minecraft/server/VillagePlace.java b/src/main/java/net/minecraft/server/VillagePlace.java
+index c1e149f204d5676091bb854dbacc564616894e4b..f1e791c87457bcdf31a70f6f06bf865f556f12e7 100644
+--- a/src/main/java/net/minecraft/server/VillagePlace.java
++++ b/src/main/java/net/minecraft/server/VillagePlace.java
+@@ -106,9 +106,12 @@ public class VillagePlace extends RegionFileSection<VillagePlaceSection> {
+         List<VillagePlaceRecord> list = (List) this.c(predicate, blockposition, i, villageplace_occupancy).collect(Collectors.toList());
+ 
+         Collections.shuffle(list, random);
+-        return list.stream().filter((villageplacerecord) -> {
+-            return predicate1.test(villageplacerecord.f());
+-        }).findFirst().map(VillagePlaceRecord::f);
++        for (VillagePlaceRecord villageplacerecord : list) {
++            if (predicate1.test(villageplacerecord.f())) {
++                return Optional.of(villageplacerecord).map(VillagePlaceRecord::f);
++            }
++        }
++        return Optional.<VillagePlaceRecord>empty().map(VillagePlaceRecord::f);
+     }
+ 
+     public boolean b(BlockPosition blockposition) {
+diff --git a/src/main/java/net/minecraft/server/VoxelShapes.java b/src/main/java/net/minecraft/server/VoxelShapes.java
+index f6f3bdc61dadca13088ea8d261fa4a90b520de57..271a5b4ac0fbe1abacd576245e2e655d6c401d6e 100644
+--- a/src/main/java/net/minecraft/server/VoxelShapes.java
++++ b/src/main/java/net/minecraft/server/VoxelShapes.java
+@@ -162,7 +162,11 @@ public final class VoxelShapes {
+     }
+ 
+     public static VoxelShape a(VoxelShape voxelshape, VoxelShape... avoxelshape) {
+-        return (VoxelShape) Arrays.stream(avoxelshape).reduce(voxelshape, VoxelShapes::a);
++        VoxelShape acc = voxelshape;
++        for (VoxelShape voxelShape : avoxelshape) {
++            acc = a(acc, voxelShape);
++        }
++        return (VoxelShape) acc;
+     }
+ 
+     public static VoxelShape a(VoxelShape voxelshape, VoxelShape voxelshape1, OperatorBoolean operatorboolean) {
+diff --git a/src/main/java/net/minecraft/server/WorldDataServer.java b/src/main/java/net/minecraft/server/WorldDataServer.java
+index 286f672b9ba329b348750237467b4e906e0ec929..51cec9739c1409a2865d1aef7488acdb2079c88c 100644
+--- a/src/main/java/net/minecraft/server/WorldDataServer.java
++++ b/src/main/java/net/minecraft/server/WorldDataServer.java
+@@ -120,7 +120,10 @@ public class WorldDataServer implements IWorldDataServer, SaveData {
+     private void a(IRegistryCustom iregistrycustom, NBTTagCompound nbttagcompound, @Nullable NBTTagCompound nbttagcompound1) {
+         NBTTagList nbttaglist = new NBTTagList();
+ 
+-        this.B.stream().map(NBTTagString::a).forEach(nbttaglist::add);
++        for (String s : this.B) {
++            NBTTagString a = NBTTagString.a(s);
++            nbttaglist.add(a);
++        }
+         nbttagcompound.set("ServerBrands", nbttaglist);
+         nbttagcompound.setBoolean("WasModded", this.C);
+         NBTTagCompound nbttagcompound2 = new NBTTagCompound();
+diff --git a/src/main/java/net/minecraft/server/WorldMap.java b/src/main/java/net/minecraft/server/WorldMap.java
+index 225353e072033d1e5aaf5604b8db255d9a154dc8..3b1779f8220afc61d4d63926bcda0c27b44dd96e 100644
+--- a/src/main/java/net/minecraft/server/WorldMap.java
++++ b/src/main/java/net/minecraft/server/WorldMap.java
+@@ -14,10 +14,12 @@ import org.apache.logging.log4j.Logger;
+ // CraftBukkit start
+ import java.util.UUID;
+ 
++import org.bukkit.Bukkit;
+ import org.bukkit.craftbukkit.CraftServer;
+ import org.bukkit.craftbukkit.CraftWorld;
+ import org.bukkit.craftbukkit.map.CraftMapView;
+ import org.bukkit.craftbukkit.util.CraftChatMessage;
++import org.bukkit.entity.Player;
+ // CraftBukkit end
+ 
+ public class WorldMap extends PersistentBase {
+@@ -437,13 +439,15 @@ public class WorldMap extends PersistentBase {
+         // Paper start
+         private void addSeenPlayers(java.util.Collection<MapIcon> icons) {
+             org.bukkit.entity.Player player = (org.bukkit.entity.Player) trackee.getBukkitEntity();
+-            WorldMap.this.decorations.forEach((name, mapIcon) -> {
+-                // If this cursor is for a player check visibility with vanish system
+-                org.bukkit.entity.Player other = org.bukkit.Bukkit.getPlayerExact(name); // Spigot
++            for (Map.Entry<String, MapIcon> entry : WorldMap.this.decorations.entrySet()) {
++                String name = entry.getKey();
++                MapIcon mapIcon = entry.getValue();
++// If this cursor is for a player check visibility with vanish system
++                Player other = Bukkit.getPlayerExact(name); // Spigot
+                 if (other == null || player.canSee(other)) {
+                     icons.add(mapIcon);
+                 }
+-            });
++            }
+         }
+         private boolean shouldUseVanillaMap() {
+             return mapView.getRenderers().size() == 1 && mapView.getRenderers().get(0).getClass() == org.bukkit.craftbukkit.map.CraftMapRenderer.class;
+diff --git a/src/main/java/net/minecraft/server/WorldServer.java b/src/main/java/net/minecraft/server/WorldServer.java
+index ed2b214c8971f5b0e98de282007975c302a458da..443b0b29f2181e9510dabcc64e12b3bedf8d0cbc 100644
+--- a/src/main/java/net/minecraft/server/WorldServer.java
++++ b/src/main/java/net/minecraft/server/WorldServer.java
+@@ -22,14 +22,7 @@ import java.io.BufferedWriter;
+ import java.io.IOException;
+ import java.io.Writer;
+ import java.nio.file.Files;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.Objects;
+-import java.util.Optional;
+-import java.util.Queue;
+-import java.util.Set;
+-import java.util.UUID;
++import java.util.*;
+ import java.util.concurrent.Executor;
+ import java.util.function.BooleanSupplier;
+ import java.util.function.Predicate;
+@@ -861,27 +854,35 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+         }
+         // CraftBukkit end
+ 
+-        if (this.everyoneSleeping && this.players.stream().noneMatch((entityplayer) -> {
+-            return !entityplayer.isSpectator() && !entityplayer.isDeeplySleeping() && !entityplayer.fauxSleeping; // CraftBukkit
+-        })) {
+-            // CraftBukkit start
+-            long l = this.worldData.getDayTime() + 24000L;
+-            TimeSkipEvent event = new TimeSkipEvent(this.getWorld(), TimeSkipEvent.SkipReason.NIGHT_SKIP, (l - l % 24000L) - this.getDayTime());
+-            if (this.getGameRules().getBoolean(GameRules.DO_DAYLIGHT_CYCLE)) {
+-                getServer().getPluginManager().callEvent(event);
+-                if (!event.isCancelled()) {
+-                    this.setDayTime(this.getDayTime() + event.getSkipAmount());
++        if (this.everyoneSleeping) {
++            // CraftBukkit
++            boolean b = true;
++            for (EntityPlayer entityplayer : this.players) {
++                if (!entityplayer.isSpectator() && !entityplayer.isDeeplySleeping() && !entityplayer.fauxSleeping) {
++                    b = false;
++                    break;
+                 }
+-
+             }
++            if (b) {
++                // CraftBukkit start
++                long l = this.worldData.getDayTime() + 24000L;
++                TimeSkipEvent event = new TimeSkipEvent(this.getWorld(), TimeSkipEvent.SkipReason.NIGHT_SKIP, (l - l % 24000L) - this.getDayTime());
++                if (this.getGameRules().getBoolean(GameRules.DO_DAYLIGHT_CYCLE)) {
++                    getServer().getPluginManager().callEvent(event);
++                    if (!event.isCancelled()) {
++                        this.setDayTime(this.getDayTime() + event.getSkipAmount());
++                    }
+ 
+-            if (!event.isCancelled()) {
+-                this.everyoneSleeping = false;
+-                this.wakeupPlayers();
+-            }
+-            // CraftBukkit end
+-            if (this.getGameRules().getBoolean(GameRules.DO_WEATHER_CYCLE)) {
+-                this.clearWeather();
++                }
++
++                if (!event.isCancelled()) {
++                    this.everyoneSleeping = false;
++                    this.wakeupPlayers();
++                }
++                // CraftBukkit end
++                if (this.getGameRules().getBoolean(GameRules.DO_WEATHER_CYCLE)) {
++                    this.clearWeather();
++                }
+             }
+         }
+ 
+@@ -1032,9 +1033,15 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+     }
+ 
+     private void wakeupPlayers() {
+-        (this.players.stream().filter(EntityLiving::isSleeping).collect(Collectors.toList())).forEach((entityplayer) -> { // CraftBukkit - decompile error
++        List<EntityPlayer> list = new ArrayList<>();
++        for (EntityPlayer player : this.players) {
++            if (player.isSleeping()) {
++                list.add(player);
++            }
++        }// CraftBukkit - decompile error
++        for (EntityPlayer entityplayer : (list)) {
+             entityplayer.wakeup(false, false);
+-        });
++        }
+     }
+ 
+     // Paper start - optimise random block ticking
+@@ -1731,25 +1738,21 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+         // Spigot start
+         if ( entity instanceof EntityHuman )
+         {
+-            this.getMinecraftServer().worldServer.values().stream().map( WorldServer::getWorldPersistentData ).forEach( (worldData) ->
+-            {
+-                for (Object o : worldData.data.values() )
+-                {
+-                    if ( o instanceof WorldMap )
+-                    {
++            for (WorldServer worldServer : this.getMinecraftServer().worldServer.values()) {
++                WorldPersistentData worldPersistentData = worldServer.getWorldPersistentData();
++                for (Object o : worldPersistentData.data.values()) {
++                    if (o instanceof WorldMap) {
+                         WorldMap map = (WorldMap) o;
+-                        map.humans.remove( (EntityHuman) entity );
+-                        for ( Iterator<WorldMap.WorldMapHumanTracker> iter = (Iterator<WorldMap.WorldMapHumanTracker>) map.i.iterator(); iter.hasNext(); )
+-                        {
+-                            if ( iter.next().trackee == entity )
+-                            {
++                        map.humans.remove(entity);
++                        for (Iterator<WorldMap.WorldMapHumanTracker> iter = map.i.iterator(); iter.hasNext(); ) {
++                            if (iter.next().trackee == entity) {
+                                 map.decorations.remove(entity.getDisplayName().getString()); // Paper
+                                 iter.remove();
+                             }
+                         }
+                     }
+                 }
+-            } );
++            }
+         }
+         // Spigot end
+         // Spigot Start
+@@ -2228,12 +2231,12 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+             chunkproviderserver.addTicket(TicketType.START, new ChunkCoordIntPair(spawn.add(-radiusInBlocks, 0, z)), 1, Unit.INSTANCE); // level 32
+         }
+ 
+-        MCUtil.getSpiralOutChunks(spawn, radiusInBlocks >> 4).forEach(pair -> {
++        for (ChunkCoordIntPair pair : MCUtil.getSpiralOutChunks(spawn, radiusInBlocks >> 4)) {
+             getChunkProvider().getChunkAtAsynchronously(pair.x, pair.z, true, false).exceptionally((ex) -> {
+                 ex.printStackTrace();
+                 return null;
+             });
+-        });
++        }
+     }
+     public void removeTicketsForSpawn(int radiusInBlocks, BlockPosition spawn) {
+         // In order to respect vanilla behavior, which is ensuring everything but the spawn border can tick, we added tickets
+@@ -2615,12 +2618,12 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+ 
+         // CraftBukkit start
+         org.bukkit.craftbukkit.util.BlockStateListPopulator blockList = new org.bukkit.craftbukkit.util.BlockStateListPopulator(worldserver);
+-        BlockPosition.b(i - 2, j + 1, k - 2, i + 2, j + 3, k + 2).forEach((blockposition1) -> {
+-            blockList.setTypeAndData(blockposition1, Blocks.AIR.getBlockData(), 3);
+-        });
+-        BlockPosition.b(i - 2, j, k - 2, i + 2, j, k + 2).forEach((blockposition1) -> {
++        for (BlockPosition blockPosition : BlockPosition.b(i - 2, j + 1, k - 2, i + 2, j + 3, k + 2)) {
++            blockList.setTypeAndData(blockPosition, Blocks.AIR.getBlockData(), 3);
++        }
++        for (BlockPosition blockposition1 : BlockPosition.b(i - 2, j, k - 2, i + 2, j, k + 2)) {
+             blockList.setTypeAndData(blockposition1, Blocks.OBSIDIAN.getBlockData(), 3);
+-        });
++        }
+         org.bukkit.World bworld = worldserver.getWorld();
+         org.bukkit.event.world.PortalCreateEvent portalEvent = new org.bukkit.event.world.PortalCreateEvent((List<org.bukkit.block.BlockState>) (List) blockList.getList(), bworld, (entity == null) ? null : entity.getBukkitEntity(), org.bukkit.event.world.PortalCreateEvent.CreateReason.END_PLATFORM);
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 5b0076f62734cd45f80fb534ac660139b722e11f..cd3460b27e383a314741461f9703279474fbbaf9 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -27,21 +27,7 @@ import java.io.IOException;
+ import java.io.InputStreamReader;
+ import java.nio.ByteBuffer;
+ import java.nio.charset.StandardCharsets;
+-import java.util.ArrayList;
+-import java.util.Arrays;
+-import java.util.Base64;
+-import java.util.Collections;
+-import java.util.HashSet;
+-import java.util.Iterator;
+-import java.util.LinkedHashMap;
+-import java.util.LinkedHashSet;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.Objects;
+-import java.util.Properties;
+-import java.util.Random;
+-import java.util.Set;
+-import java.util.UUID;
++import java.util.*;
+ import java.util.function.Consumer;
+ import java.util.logging.Level;
+ import java.util.logging.Logger;
+@@ -2302,9 +2288,11 @@ public final class CraftServer implements Server {
+ 
+     @Override
+     public boolean reloadCommandAliases() {
+-        Set<String> removals = getCommandAliases().keySet().stream()
+-                .map(key -> key.toLowerCase(java.util.Locale.ENGLISH))
+-                .collect(java.util.stream.Collectors.toSet());
++        Set<String> removals = new HashSet<>();
++        for (String key : getCommandAliases().keySet()) {
++            String s = key.toLowerCase(Locale.ENGLISH);
++            removals.add(s);
++        }
+         getCommandMap().getKnownCommands().keySet().removeIf(removals::contains);
+         File file = getCommandsConfigFile();
+         try {
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index 21bd9f14e17dc5ca011deddf3f6a554ae5564f16..30baf15d476af660bb85b2941d0067acdabe9638 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -459,12 +459,28 @@ public class CraftWorld implements World {
+         if (Thread.currentThread() != world.getMinecraftWorld().serverThread) {
+             synchronized (world.getChunkProvider().playerChunkMap.visibleChunks) {
+                 Long2ObjectLinkedOpenHashMap<PlayerChunk> chunks = world.getChunkProvider().playerChunkMap.visibleChunks;
+-                return chunks.values().stream().map(PlayerChunk::getFullChunk).filter(Objects::nonNull).map(net.minecraft.server.Chunk::getBukkitChunk).toArray(Chunk[]::new);
++                List<Chunk> list = new ArrayList<>();
++                for (PlayerChunk playerChunk : chunks.values()) {
++                    net.minecraft.server.Chunk fullChunk = playerChunk.getFullChunk();
++                    if (fullChunk != null) {
++                        Chunk bukkitChunk = fullChunk.getBukkitChunk();
++                        list.add(bukkitChunk);
++                    }
++                }
++                return list.toArray(new Chunk[0]);
+             }
+         }
+         // Paper end
+         Long2ObjectLinkedOpenHashMap<PlayerChunk> chunks = world.getChunkProvider().playerChunkMap.visibleChunks;
+-        return chunks.values().stream().map(PlayerChunk::getFullChunk).filter(Objects::nonNull).map(net.minecraft.server.Chunk::getBukkitChunk).toArray(Chunk[]::new);
++        List<Chunk> list = new ArrayList<>();
++        for (PlayerChunk playerChunk : chunks.values()) {
++            net.minecraft.server.Chunk fullChunk = playerChunk.getFullChunk();
++            if (fullChunk != null) {
++                Chunk bukkitChunk = fullChunk.getBukkitChunk();
++                list.add(bukkitChunk);
++            }
++        }
++        return list.toArray(new Chunk[0]);
+     }
+ 
+     @Override
+@@ -2507,7 +2523,12 @@ public class CraftWorld implements World {
+     @Override
+     public List<Raid> getRaids() {
+         PersistentRaid persistentRaid = world.getPersistentRaid();
+-        return persistentRaid.raids.values().stream().map(CraftRaid::new).collect(Collectors.toList());
++        List<Raid> list = new ArrayList<>();
++        for (net.minecraft.server.Raid raid : persistentRaid.raids.values()) {
++            CraftRaid craftRaid = new CraftRaid(raid);
++            list.add(craftRaid);
++        }
++        return list;
+     }
+ 
+     @Override
+diff --git a/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java b/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
+index ee53060b112afe0f84c2be41cad2f498e3d410a0..6a681a8efc64417b0a2945d8fe3c1287c7d5e358 100644
+--- a/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
++++ b/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
+@@ -1,6 +1,8 @@
+ package org.bukkit.craftbukkit.block;
+ 
+ import com.google.common.base.Preconditions;
++
++import java.util.ArrayList;
+ import java.util.Collection;
+ import java.util.Collections;
+ import java.util.List;
+@@ -675,8 +677,12 @@ public class CraftBlock implements Block {
+ 
+         // Modelled off EntityHuman#hasBlock
+         if (item == null || !iblockdata.isAlwaysDestroyable() || nms.canDestroySpecialBlock(iblockdata)) {
+-            return net.minecraft.server.Block.getDrops(iblockdata, (WorldServer) world.getMinecraftWorld(), position, world.getTileEntity(position), entity == null ? null : ((CraftEntity) entity).getHandle(), nms)
+-                    .stream().map(CraftItemStack::asBukkitCopy).collect(Collectors.toList());
++            List<ItemStack> list = new ArrayList<>();
++            for (net.minecraft.server.ItemStack itemStack : net.minecraft.server.Block.getDrops(iblockdata, (WorldServer) world.getMinecraftWorld(), position, world.getTileEntity(position), entity == null ? null : ((CraftEntity) entity).getHandle(), nms)) {
++                ItemStack stack = CraftItemStack.asBukkitCopy(itemStack);
++                list.add(stack);
++            }
++            return list;
+         } else {
+             return Collections.emptyList();
+         }
+diff --git a/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java b/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java
+index 980890153294c04502108d6852e347ca8b1ac200..4045e3c194048d66ada0a15a9c208f8dbac5285e 100644
+--- a/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java
++++ b/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java
+@@ -10,6 +10,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
+ import java.util.HashMap;
+ import java.util.Map;
+ import java.util.Set;
++import java.util.StringJoiner;
+ import java.util.stream.Collectors;
+ import net.minecraft.server.ArgumentBlock;
+ import net.minecraft.server.Block;
+@@ -269,7 +270,12 @@ public class CraftBlockData implements BlockData {
+ 
+         if (!states.isEmpty()) {
+             stateString.append('[');
+-            stateString.append(states.entrySet().stream().map(IBlockDataHolder.STATE_TO_VALUE).collect(Collectors.joining(",")));
++            StringJoiner joiner = new StringJoiner(",");
++            for (Map.Entry<IBlockState<?>, Comparable<?>> iBlockStateComparableEntry : states.entrySet()) {
++                String s = IBlockDataHolder.STATE_TO_VALUE.apply(iBlockStateComparableEntry);
++                joiner.add(s);
++            }
++            stateString.append(joiner.toString());
+             stateString.append(']');
+         }
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/command/ConsoleCommandCompleter.java b/src/main/java/org/bukkit/craftbukkit/command/ConsoleCommandCompleter.java
+index a51202ed53d8ba99b364e8797fe32fa8aeb4fc87..f276cdcaacc2fd2650a2ddccbbf190421a20c2bd 100644
+--- a/src/main/java/org/bukkit/craftbukkit/command/ConsoleCommandCompleter.java
++++ b/src/main/java/org/bukkit/craftbukkit/command/ConsoleCommandCompleter.java
+@@ -1,5 +1,6 @@
+ package org.bukkit.craftbukkit.command;
+ 
++import java.util.ArrayList;
+ import java.util.Collections;
+ import java.util.List;
+ import java.util.concurrent.ExecutionException;
+@@ -56,7 +57,12 @@ public class ConsoleCommandCompleter implements Completer {
+             }
+ 
+             if (!completions.isEmpty()) {
+-                candidates.addAll(completions.stream().map(Candidate::new).collect(java.util.stream.Collectors.toList()));
++                List<Candidate> list = new ArrayList<>();
++                for (String completion : completions) {
++                    Candidate candidate = new Candidate(completion);
++                    list.add(candidate);
++                }
++                candidates.addAll(list);
+             }
+             return;
+         }
+diff --git a/src/main/java/org/bukkit/craftbukkit/command/VanillaCommandWrapper.java b/src/main/java/org/bukkit/craftbukkit/command/VanillaCommandWrapper.java
+index f34461460049a80c5ff57805927053a36a4db426..3c610a889f371f54b0f456266d14538fc3ff03ac 100644
+--- a/src/main/java/org/bukkit/craftbukkit/command/VanillaCommandWrapper.java
++++ b/src/main/java/org/bukkit/craftbukkit/command/VanillaCommandWrapper.java
+@@ -2,6 +2,7 @@ package org.bukkit.craftbukkit.command;
+ 
+ import com.google.common.base.Joiner;
+ import com.mojang.brigadier.ParseResults;
++import com.mojang.brigadier.suggestion.Suggestion;
+ import com.mojang.brigadier.tree.CommandNode;
+ import java.util.ArrayList;
+ import java.util.Collections;
+@@ -57,7 +58,9 @@ public final class VanillaCommandWrapper extends BukkitCommand {
+ 
+         List<String> results = new ArrayList<>();
+         dispatcher.a().getCompletionSuggestions(parsed).thenAccept((suggestions) -> {
+-            suggestions.getList().forEach((s) -> results.add(s.getText()));
++            for (Suggestion s : suggestions.getList()) {
++                results.add(s.getText());
++            }
+         });
+ 
+         return results;
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftVillager.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftVillager.java
+index d24a892c498d7ee58741c9358748a117f01d8a8d..85a7406048a5d44b8e26d7949feacb7ec12c575c 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftVillager.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftVillager.java
+@@ -3,6 +3,8 @@ package org.bukkit.craftbukkit.entity;
+ import com.destroystokyo.paper.entity.villager.Reputation; // Paper
+ import com.google.common.base.Preconditions;
+ import com.google.common.collect.Maps; // Paper
++
++import java.util.HashMap;
+ import java.util.Locale;
+ import net.minecraft.server.BlockBed;
+ import net.minecraft.server.BlockPosition;
+@@ -142,9 +144,13 @@ public class CraftVillager extends CraftAbstractVillager implements Villager {
+ 
+     @Override
+     public Map<UUID, Reputation> getReputations() {
+-        return getHandle().getReputation().getReputations().entrySet()
+-            .stream()
+-            .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().getPaperReputation()));
++        Map<UUID, Reputation> map = new HashMap<>();
++        for (Map.Entry<UUID, net.minecraft.server.Reputation.a> entry : getHandle().getReputation().getReputations().entrySet()) {
++            if (map.put(entry.getKey(), entry.getValue().getPaperReputation()) != null) {
++                throw new IllegalStateException("Duplicate key");
++            }
++        }
++        return map;
+     }
+ 
+     @Override
+diff --git a/src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java b/src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java
+index 521e204260e96c3010fdfb90e52f7170ad9a9fc4..95899513ec976c515d97d7e733fd35b762532f1e 100644
+--- a/src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java
++++ b/src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java
+@@ -1730,7 +1730,11 @@ public class CraftEventFactory {
+         Entity entity = lootInfo.getContextParameter(LootContextParameters.THIS_ENTITY);
+         NamespacedKey key = CraftNamespacedKey.fromMinecraft(world.getHandle().getMinecraftServer().getLootTableRegistry().lootTableToKey.get(lootTable));
+         CraftLootTable craftLootTable = new CraftLootTable(key, lootTable);
+-        List<org.bukkit.inventory.ItemStack> bukkitLoot = loot.stream().map(CraftItemStack::asCraftMirror).collect(Collectors.toCollection(ArrayList::new));
++        List<org.bukkit.inventory.ItemStack> bukkitLoot = new ArrayList<>();
++        for (ItemStack itemStack : loot) {
++            CraftItemStack craftItemStack = CraftItemStack.asCraftMirror(itemStack);
++            bukkitLoot.add(craftItemStack);
++        }
+ 
+         LootGenerateEvent event = new LootGenerateEvent(world, (entity != null ? entity.getBukkitEntity() : null), inventory.getOwner(), craftLootTable, CraftLootTable.convertContext(lootInfo), bukkitLoot, plugin);
+         Bukkit.getPluginManager().callEvent(event);
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
+index 8f48b58c98ba40d5d7deb6775957e2c6b4d334c6..4b86843d92f4237978f6f93555c5dbb5430ccaa1 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
+@@ -21,20 +21,7 @@ import java.lang.annotation.RetentionPolicy;
+ import java.lang.annotation.Target;
+ import java.lang.reflect.Constructor;
+ import java.lang.reflect.InvocationTargetException;
+-import java.util.ArrayList;
+-import java.util.Arrays;
+-import java.util.Collection;
+-import java.util.Comparator; // Paper
+-import java.util.EnumSet;
+-import java.util.HashMap;
+-import java.util.Iterator;
+-import java.util.LinkedHashMap;
+-import java.util.List;
+-import java.util.Locale;
+-import java.util.Map;
+-import java.util.NoSuchElementException;
+-import java.util.Set;
+-import java.util.TreeMap; // Paper
++import java.util.*;
+ import java.util.logging.Level;
+ import java.util.logging.Logger;
+ import javax.annotation.Nonnull;
+@@ -52,6 +39,7 @@ import org.apache.commons.codec.binary.Base64;
+ import org.apache.commons.lang.Validate;
+ import org.apache.commons.lang3.EnumUtils;
+ import org.bukkit.Material;
++import org.bukkit.NamespacedKey;
+ import org.bukkit.attribute.Attribute;
+ import org.bukkit.attribute.AttributeModifier;
+ import org.bukkit.block.data.BlockData;
+@@ -88,7 +76,6 @@ import static org.spigotmc.ValidateUtils.*;
+ // Paper start
+ import com.destroystokyo.paper.Namespaced;
+ import com.destroystokyo.paper.NamespacedTag;
+-import java.util.Collections;
+ // Paper end
+ 
+ /**
+@@ -736,17 +723,21 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
+         }
+         // Paper start - Implement an API for CanPlaceOn and CanDestroy NBT values
+         if (hasPlaceableKeys()) {
+-            List<String> items = this.placeableKeys.stream()
+-                .map(this::serializeNamespaced)
+-                .collect(java.util.stream.Collectors.toList());
++            List<String> items = new ArrayList<>();
++            for (Namespaced placeableKey : this.placeableKeys) {
++                String s = serializeNamespaced(placeableKey);
++                items.add(s);
++            }
+ 
+             itemTag.set(CAN_PLACE_ON.NBT, createNonComponentStringList(items));
+         }
+ 
+         if (hasDestroyableKeys()) {
+-            List<String> items = this.destroyableKeys.stream()
+-                .map(this::serializeNamespaced)
+-                .collect(java.util.stream.Collectors.toList());
++            List<String> items = new ArrayList<>();
++            for (Namespaced destroyableKey : this.destroyableKeys) {
++                String s = serializeNamespaced(destroyableKey);
++                items.add(s);
++            }
+ 
+             itemTag.set(CAN_DESTROY.NBT, createNonComponentStringList(items));
+         }
+@@ -1399,17 +1390,21 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
+ 
+         // Paper start - Implement an API for CanPlaceOn and CanDestroy NBT values
+         if (hasPlaceableKeys()) {
+-            List<String> cerealPlaceable = this.placeableKeys.stream()
+-                .map(this::serializeNamespaced)
+-                .collect(java.util.stream.Collectors.toList());
++            List<String> cerealPlaceable = new ArrayList<>();
++            for (Namespaced placeableKey : this.placeableKeys) {
++                String s = serializeNamespaced(placeableKey);
++                cerealPlaceable.add(s);
++            }
+ 
+             builder.put(CAN_PLACE_ON.BUKKIT, cerealPlaceable);
+         }
+ 
+         if (hasDestroyableKeys()) {
+-            List<String> cerealDestroyable = this.destroyableKeys.stream()
+-                .map(this::serializeNamespaced)
+-                .collect(java.util.stream.Collectors.toList());
++            List<String> cerealDestroyable = new ArrayList<>();
++            for (Namespaced destroyableKey : this.destroyableKeys) {
++                String s = serializeNamespaced(destroyableKey);
++                cerealDestroyable.add(s);
++            }
+ 
+             builder.put(CAN_DESTROY.BUKKIT, cerealDestroyable);
+         }
+@@ -1673,12 +1668,19 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
+ 
+     @Deprecated
+     private void legacyClearAndReplaceKeys(Collection<Namespaced> toUpdate, Collection<Material> beingSet) {
+-        if (beingSet.stream().anyMatch(Material::isLegacy)) {
+-            throw new IllegalArgumentException("Set must not contain any legacy materials!");
++        for (Material material1 : beingSet) {
++            if (material1.isLegacy()) {
++                throw new IllegalArgumentException("Set must not contain any legacy materials!");
++            }
+         }
+ 
+         toUpdate.clear();
+-        toUpdate.addAll(beingSet.stream().map(Material::getKey).collect(java.util.stream.Collectors.toSet()));
++        Set<NamespacedKey> set = new HashSet<>();
++        for (Material material : beingSet) {
++            NamespacedKey key = material.getKey();
++            set.add(key);
++        }
++        toUpdate.addAll(set);
+     }
+ 
+     @Deprecated
+diff --git a/src/main/java/org/bukkit/craftbukkit/persistence/CraftPersistentDataContainer.java b/src/main/java/org/bukkit/craftbukkit/persistence/CraftPersistentDataContainer.java
+index 58e2db5da178af6a8c30f563353fefe720ff9781..5187878792d8f387dbe8c8df7938521f1671adfe 100644
+--- a/src/main/java/org/bukkit/craftbukkit/persistence/CraftPersistentDataContainer.java
++++ b/src/main/java/org/bukkit/craftbukkit/persistence/CraftPersistentDataContainer.java
+@@ -76,12 +76,12 @@ public final class CraftPersistentDataContainer implements PersistentDataContain
+     public Set<NamespacedKey> getKeys() {
+         Set<NamespacedKey> keys = new HashSet<>();
+ 
+-        this.customDataTags.keySet().forEach(key -> {
++        for (String key : this.customDataTags.keySet()) {
+             String[] keyData = key.split(":", 2);
+             if (keyData.length == 2) {
+                 keys.add(new NamespacedKey(keyData[0], keyData[1]));
+             }
+-        });
++        }
+ 
+         return keys;
+     }
+diff --git a/src/main/java/org/bukkit/craftbukkit/tag/CraftBlockTag.java b/src/main/java/org/bukkit/craftbukkit/tag/CraftBlockTag.java
+index 694aff9b1b1be39e6b588295cf862bf1a8fa866b..57acfb7c0e1e0a9c104cadf9a0f3ab5b8b3f685b 100644
+--- a/src/main/java/org/bukkit/craftbukkit/tag/CraftBlockTag.java
++++ b/src/main/java/org/bukkit/craftbukkit/tag/CraftBlockTag.java
+@@ -1,6 +1,7 @@
+ package org.bukkit.craftbukkit.tag;
+ 
+ import java.util.Collections;
++import java.util.HashSet;
+ import java.util.Set;
+ import java.util.stream.Collectors;
+ import net.minecraft.server.Block;
+@@ -22,6 +23,11 @@ public class CraftBlockTag extends CraftTag<Block, Material> {
+ 
+     @Override
+     public Set<Material> getValues() {
+-        return Collections.unmodifiableSet(getHandle().getTagged().stream().map((block) -> CraftMagicNumbers.getMaterial(block)).collect(Collectors.toSet()));
++        Set<Material> set = new HashSet<>();
++        for (Block block : getHandle().getTagged()) {
++            Material material = CraftMagicNumbers.getMaterial(block);
++            set.add(material);
++        }
++        return Collections.unmodifiableSet(set);
+     }
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/tag/CraftItemTag.java b/src/main/java/org/bukkit/craftbukkit/tag/CraftItemTag.java
+index cd72f07c5f0c62cebfa0d7d1b3b0b7de373a77ed..96ee7881b2dea2b4b764265e670e5a7b57a35f69 100644
+--- a/src/main/java/org/bukkit/craftbukkit/tag/CraftItemTag.java
++++ b/src/main/java/org/bukkit/craftbukkit/tag/CraftItemTag.java
+@@ -1,6 +1,7 @@
+ package org.bukkit.craftbukkit.tag;
+ 
+ import java.util.Collections;
++import java.util.HashSet;
+ import java.util.Set;
+ import java.util.stream.Collectors;
+ import net.minecraft.server.Item;
+@@ -22,6 +23,11 @@ public class CraftItemTag extends CraftTag<Item, Material> {
+ 
+     @Override
+     public Set<Material> getValues() {
+-        return Collections.unmodifiableSet(getHandle().getTagged().stream().map((item) -> CraftMagicNumbers.getMaterial(item)).collect(Collectors.toSet()));
++        Set<Material> set = new HashSet<>();
++        for (Item item : getHandle().getTagged()) {
++            Material material = CraftMagicNumbers.getMaterial(item);
++            set.add(material);
++        }
++        return Collections.unmodifiableSet(set);
+     }
+ }
