@@ -5,25 +5,13 @@ Date: Fri, 3 Apr 2020 14:59:22 +0800
 Subject: [PATCH] Akarin configuration
 
 
-diff --git a/src/main/java/co/aikar/timings/TimingsExport.java b/src/main/java/co/aikar/timings/TimingsExport.java
-index 5dfa0658838c4801cdf260eae8b98163f729e5af..841a8d2b392acdcef90592b841cbbcb2237c6901 100644
---- a/src/main/java/co/aikar/timings/TimingsExport.java
-+++ b/src/main/java/co/aikar/timings/TimingsExport.java
-@@ -231,6 +231,7 @@ public class TimingsExport extends Thread {
-             pair("bukkit", mapAsJSON(Bukkit.spigot().getBukkitConfig(), null)),
-             pair("paper", mapAsJSON(Bukkit.spigot().getPaperConfig(), null)), // Tuinity - add config to timings report
-             pair("tuinity", mapAsJSON(Bukkit.spigot().getTuinityConfig(), null)) // Tuinity - add config to timings report
-+            , pair("akarin", mapAsJSON(Bukkit.spigot().getAkarinConfig(), null)) // Akarin - Server config
-         ));
- 
-         new TimingsExport(listeners, parent, history).start();
-diff --git a/src/main/java/io/akarin/server/Config.java b/src/main/java/io/akarin/server/Config.java
+diff --git a/src/main/java/app/akarin/server/Config.java b/src/main/java/app/akarin/server/Config.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2ac8f02a97429f04f3e5c9206ec228edccaf24c9
+index 0000000000000000000000000000000000000000..1742facec843dd87897d62e4aab819835fab4a38
 --- /dev/null
-+++ b/src/main/java/io/akarin/server/Config.java
++++ b/src/main/java/app/akarin/server/Config.java
 @@ -0,0 +1,183 @@
-+package io.akarin.server;
++package app.akarin.server;
 +
 +import org.bukkit.Bukkit;
 +import org.bukkit.configuration.ConfigurationSection;
@@ -206,27 +194,39 @@ index 0000000000000000000000000000000000000000..2ac8f02a97429f04f3e5c9206ec228ed
 +    }
 +
 +}
+diff --git a/src/main/java/co/aikar/timings/TimingsExport.java b/src/main/java/co/aikar/timings/TimingsExport.java
+index 5dfa0658838c4801cdf260eae8b98163f729e5af..841a8d2b392acdcef90592b841cbbcb2237c6901 100644
+--- a/src/main/java/co/aikar/timings/TimingsExport.java
++++ b/src/main/java/co/aikar/timings/TimingsExport.java
+@@ -231,6 +231,7 @@ public class TimingsExport extends Thread {
+             pair("bukkit", mapAsJSON(Bukkit.spigot().getBukkitConfig(), null)),
+             pair("paper", mapAsJSON(Bukkit.spigot().getPaperConfig(), null)), // Tuinity - add config to timings report
+             pair("tuinity", mapAsJSON(Bukkit.spigot().getTuinityConfig(), null)) // Tuinity - add config to timings report
++            , pair("akarin", mapAsJSON(Bukkit.spigot().getAkarinConfig(), null)) // Akarin - Server config
+         ));
+ 
+         new TimingsExport(listeners, parent, history).start();
 diff --git a/src/main/java/net/minecraft/server/DedicatedServer.java b/src/main/java/net/minecraft/server/DedicatedServer.java
-index 578f7809cb09e746778d05b153e02c569f0d1d90..665c98fc43a237b809fc80573b8a9a740ed47d9e 100644
+index 578f7809cb09e746778d05b153e02c569f0d1d90..412afe1942061c7677fd64736eae8d80b2552a79 100644
 --- a/src/main/java/net/minecraft/server/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/DedicatedServer.java
 @@ -171,6 +171,7 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
          com.destroystokyo.paper.VersionHistoryManager.INSTANCE.getClass(); // load version history now
          // Paper end
          com.tuinity.tuinity.config.TuinityConfig.init((java.io.File) options.valueOf("tuinity-settings")); // Tuinity - Server Config
-+        io.akarin.server.Config.init((java.io.File) options.valueOf("akarin-settings")); // Akarin - Server Config
++        app.akarin.server.Config.init((java.io.File) options.valueOf("akarin-settings")); // Akarin - Server Config
  
          this.setPVP(dedicatedserverproperties.pvp);
          this.setAllowFlight(dedicatedserverproperties.allowFlight);
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 8df4ef48815977ad6fabb917520969eb46006252..df316296a97231f36fd36573a96a915fa4ed6f40 100644
+index 8df4ef48815977ad6fabb917520969eb46006252..d1f3de21b0c54fa83484d3342489331fc94294d7 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -95,6 +95,7 @@ public abstract class World implements GeneratorAccess, AutoCloseable {
      public final ChunkPacketBlockController chunkPacketBlockController; // Paper - Anti-Xray
  
      public final com.tuinity.tuinity.config.TuinityConfig.WorldConfig tuinityConfig; // Tuinity - Server Config
-+    public final io.akarin.server.Config.WorldConfig akarinConfig; // Akarin - Server Config
++    public final app.akarin.server.Config.WorldConfig akarinConfig; // Akarin - Server Config
  
      public final co.aikar.timings.WorldTimingsHandler timings; // Paper
      public static BlockPosition lastPhysicsProblem; // Spigot
@@ -234,19 +234,19 @@ index 8df4ef48815977ad6fabb917520969eb46006252..df316296a97231f36fd36573a96a915f
          this.paperConfig = new com.destroystokyo.paper.PaperWorldConfig((((WorldDataServer)worlddatamutable).getName()), this.spigotConfig); // Paper
          this.chunkPacketBlockController = this.paperConfig.antiXray ? new ChunkPacketBlockControllerAntiXray(this.paperConfig, executor) : ChunkPacketBlockController.NO_OPERATION_INSTANCE; // Paper - Anti-Xray
          this.tuinityConfig = new com.tuinity.tuinity.config.TuinityConfig.WorldConfig(((WorldDataServer)worlddatamutable).getName()); // Tuinity - Server Config
-+        this.akarinConfig = new io.akarin.server.Config.WorldConfig(((WorldDataServer)worlddatamutable).getName()); // Akarin - Server Config
++        this.akarinConfig = new app.akarin.server.Config.WorldConfig(((WorldDataServer)worlddatamutable).getName()); // Akarin - Server Config
          this.generator = gen;
          this.world = new CraftWorld((WorldServer) this, gen, env);
          this.ticksPerAnimalSpawns = this.getServer().getTicksPerAnimalSpawns(); // CraftBukkit
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index cebcb845b59c6c8cef9e4802ad09a72d631d3928..22c324e6bb0ed1e18d8464a01ca9f7ee30038d23 100644
+index cebcb845b59c6c8cef9e4802ad09a72d631d3928..434fe2e4cff61fef58a9531d6036db1054dc0f69 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -847,6 +847,7 @@ public final class CraftServer implements Server {
          org.spigotmc.SpigotConfig.init((File) console.options.valueOf("spigot-settings")); // Spigot
          com.destroystokyo.paper.PaperConfig.init((File) console.options.valueOf("paper-settings")); // Paper
          com.tuinity.tuinity.config.TuinityConfig.init((File) console.options.valueOf("tuinity-settings")); // Tuinity - Server Config
-+        io.akarin.server.Config.init((File) console.options.valueOf("akarin-settings")); // Akarin - Server Config
++        app.akarin.server.Config.init((File) console.options.valueOf("akarin-settings")); // Akarin - Server Config
          for (WorldServer world : console.getWorlds()) {
              world.worldDataServer.setDifficulty(config.difficulty);
              world.setSpawnFlags(config.spawnMonsters, config.spawnAnimals);
@@ -266,7 +266,7 @@ index cebcb845b59c6c8cef9e4802ad09a72d631d3928..22c324e6bb0ed1e18d8464a01ca9f7ee
 +        @Override
 +        public YamlConfiguration getAkarinConfig()
 +        {
-+            return io.akarin.server.Config.config;
++            return app.akarin.server.Config.config;
 +        }
 +        // Akarin End - Server Config
 +

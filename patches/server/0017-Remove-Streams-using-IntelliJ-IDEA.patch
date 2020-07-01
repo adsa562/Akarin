@@ -200,13 +200,13 @@ index e546de5e5f80ef35b6911ca411d8d898083949ef..a70e42f2d5055fde4b39f990f76f5e89
  
          advancements.a((Map) map1);
 diff --git a/src/main/java/net/minecraft/server/BehaviorInteractDoor.java b/src/main/java/net/minecraft/server/BehaviorInteractDoor.java
-index 817cda4d814a6f3ed00674e0729b7d87cab8a1a6..cd98d06650ec6b2257c59e4a709b122886c10119 100644
+index effb2942a8a3fa55030219689eeae4beb2a67cdf..e42e1920fbadb47d02fa748fbe5aba770e6ab763 100644
 --- a/src/main/java/net/minecraft/server/BehaviorInteractDoor.java
 +++ b/src/main/java/net/minecraft/server/BehaviorInteractDoor.java
 @@ -4,6 +4,9 @@ import com.google.common.collect.ImmutableMap;
  import com.google.common.collect.Lists;
  import com.google.common.collect.Sets;
- import io.akarin.server.IndexedBlockPosition;
+ import app.akarin.server.IndexedBlockPosition;
 +import org.bukkit.craftbukkit.block.CraftBlock;
 +import org.bukkit.event.entity.EntityInteractEvent;
 +
@@ -216,7 +216,7 @@ index 817cda4d814a6f3ed00674e0729b7d87cab8a1a6..cd98d06650ec6b2257c59e4a709b1228
 @@ -70,7 +73,7 @@ public class BehaviorInteractDoor extends Behavior<EntityLiving> {
      }
  
-     private void a(WorldServer worldserver, java.util.Map<BlockPosition, Integer> list, Set<io.akarin.server.IndexedBlockPosition> set, int i, EntityLiving entityliving, BehaviorController<?> behaviorcontroller) { // Akarin - List -> Map, IndexedBlockPosition
+     private void a(WorldServer worldserver, java.util.Map<BlockPosition, Integer> list, Set<app.akarin.server.IndexedBlockPosition> set, int i, EntityLiving entityliving, BehaviorController<?> behaviorcontroller) { // Akarin - List -> Map, IndexedBlockPosition
 -        set.forEach((indexedblockposition) -> { // Akarin - IndexedBlockPosition
 +        for (IndexedBlockPosition indexedblockposition : set) {// Akarin - IndexedBlockPosition
              BlockPosition blockposition = indexedblockposition.get(); // Akarin - IndexedBlockPosition
@@ -2621,7 +2621,7 @@ index ed2b214c8971f5b0e98de282007975c302a458da..443b0b29f2181e9510dabcc64e12b3be
          org.bukkit.event.world.PortalCreateEvent portalEvent = new org.bukkit.event.world.PortalCreateEvent((List<org.bukkit.block.BlockState>) (List) blockList.getList(), bworld, (entity == null) ? null : entity.getBukkitEntity(), org.bukkit.event.world.PortalCreateEvent.CreateReason.END_PLATFORM);
  
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 5b0076f62734cd45f80fb534ac660139b722e11f..cd3460b27e383a314741461f9703279474fbbaf9 100644
+index f9db12642c8e843b20a83c6811ee6a12725f1c48..b5c25c80ea786a4e8ffaf8432d502c25a3e8a533 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -27,21 +27,7 @@ import java.io.IOException;

@@ -6,7 +6,7 @@ Subject: [PATCH] Akarin POM changes
 
 
 diff --git a/pom.xml b/pom.xml
-index 6fd59681784a5cc369f4903b4da0d11174b805f2..d417ac29ae426b210661c9d90bcbf8b9c59df83b 100644
+index 6fd59681784a5cc369f4903b4da0d11174b805f2..9cf31213b9cea0b939f430095699d48a71027e27 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -1,12 +1,11 @@
@@ -31,7 +31,7 @@ index 6fd59681784a5cc369f4903b4da0d11174b805f2..d417ac29ae426b210661c9d90bcbf8b9
      <parent>
 -        <groupId>com.tuinity</groupId>
 -        <artifactId>tuinity-parent</artifactId>
-+        <groupId>io.akarin.server</groupId>
++        <groupId>app.akarin.server</groupId>
 +        <artifactId>akarin-parent</artifactId>
          <version>dev-SNAPSHOT</version>
          <relativePath>../pom.xml</relativePath>
@@ -41,7 +41,7 @@ index 6fd59681784a5cc369f4903b4da0d11174b805f2..d417ac29ae426b210661c9d90bcbf8b9
          <dependency>
 -            <groupId>com.tuinity</groupId>
 -            <artifactId>tuinity-api</artifactId>
-+            <groupId>io.akarin.server</groupId>
++            <groupId>app.akarin.server</groupId>
 +            <artifactId>akarin-api</artifactId>
              <version>${project.version}</version>
              <scope>compile</scope>
@@ -65,7 +65,7 @@ index 6fd59681784a5cc369f4903b4da0d11174b805f2..d417ac29ae426b210661c9d90bcbf8b9
                  </configuration>
                  <executions>
 diff --git a/src/main/java/org/bukkit/craftbukkit/util/Versioning.java b/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
-index 001b1e5197eaa51bfff9031aa6c69876c9a47960..9a7235b8e525fbc52ff7ce53156816f9bbdb5d6f 100644
+index 001b1e5197eaa51bfff9031aa6c69876c9a47960..6ae3825de36c0999291c024339bac9e8c6748f3e 100644
 --- a/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
 +++ b/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
 @@ -11,7 +11,7 @@ public final class Versioning {
@@ -73,7 +73,7 @@ index 001b1e5197eaa51bfff9031aa6c69876c9a47960..9a7235b8e525fbc52ff7ce53156816f9
          String result = "Unknown-Version";
  
 -        InputStream stream = Bukkit.class.getClassLoader().getResourceAsStream("META-INF/maven/com.tuinity/tuinity-api/pom.properties"); // Tuinity
-+        InputStream stream = Bukkit.class.getClassLoader().getResourceAsStream("META-INF/maven/io.akarin.server/akarin-api/pom.properties"); // Akarin
++        InputStream stream = Bukkit.class.getClassLoader().getResourceAsStream("META-INF/maven/app.akarin.server/akarin-api/pom.properties"); // Akarin
          Properties properties = new Properties();
  
          if (stream != null) {

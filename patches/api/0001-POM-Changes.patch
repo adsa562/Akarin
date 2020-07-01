@@ -6,7 +6,7 @@ Subject: [PATCH] POM Changes
 
 
 diff --git a/pom.xml b/pom.xml
-index 12a5e929ffc5f686b680301d2f91c30501078e51..19042df354d31936154d7b61d80f1f3756797cad 100644
+index 12a5e929ffc5f686b680301d2f91c30501078e51..d98e08f1708daa582da240427a1f3f268d2222a9 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -3,18 +3,18 @@
@@ -15,7 +15,7 @@ index 12a5e929ffc5f686b680301d2f91c30501078e51..19042df354d31936154d7b61d80f1f37
      <parent>
 -        <groupId>com.tuinity</groupId>
 -        <artifactId>tuinity-parent</artifactId>
-+        <groupId>io.akarin.server</groupId>
++        <groupId>app.akarin.server</groupId>
 +        <artifactId>akarin-parent</artifactId>
          <version>dev-SNAPSHOT</version>
          <relativePath>../pom.xml</relativePath>
