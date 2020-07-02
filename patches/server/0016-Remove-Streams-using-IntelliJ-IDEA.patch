@@ -200,30 +200,47 @@ index e546de5e5f80ef35b6911ca411d8d898083949ef..a70e42f2d5055fde4b39f990f76f5e89
  
          advancements.a((Map) map1);
 diff --git a/src/main/java/net/minecraft/server/BehaviorInteractDoor.java b/src/main/java/net/minecraft/server/BehaviorInteractDoor.java
-index effb2942a8a3fa55030219689eeae4beb2a67cdf..e42e1920fbadb47d02fa748fbe5aba770e6ab763 100644
+index c838dd880de8ea3e6355a7f0c391c36c8ae2ebd4..8e5170b6a688529494be75ed5153def27ec9508e 100644
 --- a/src/main/java/net/minecraft/server/BehaviorInteractDoor.java
 +++ b/src/main/java/net/minecraft/server/BehaviorInteractDoor.java
-@@ -4,6 +4,9 @@ import com.google.common.collect.ImmutableMap;
- import com.google.common.collect.Lists;
+@@ -2,6 +2,10 @@ package net.minecraft.server;
+ 
+ import com.google.common.collect.ImmutableMap;
  import com.google.common.collect.Sets;
- import app.akarin.server.IndexedBlockPosition;
 +import org.bukkit.craftbukkit.block.CraftBlock;
 +import org.bukkit.event.entity.EntityInteractEvent;
 +
++import java.util.ArrayList;
  import java.util.Iterator;
  import java.util.List;
  import java.util.Set;
-@@ -70,7 +73,7 @@ public class BehaviorInteractDoor extends Behavior<EntityLiving> {
+@@ -19,9 +23,12 @@ public class BehaviorInteractDoor extends Behavior<EntityLiving> {
+         BehaviorController<?> behaviorcontroller = entityliving.getBehaviorController();
+         PathEntity pathentity = (PathEntity) behaviorcontroller.getMemory(MemoryModuleType.PATH).get();
+         List<GlobalPos> list = (List) behaviorcontroller.getMemory(MemoryModuleType.INTERACTABLE_DOORS).get();
+-        List<BlockPosition> list1 = (List) pathentity.d().stream().map((pathpoint) -> {
+-            return new BlockPosition(pathpoint.a, pathpoint.b, pathpoint.c);
+-        }).collect(Collectors.toList());
++        List<BlockPosition> result = new ArrayList<>();
++        for (PathPoint pathpoint : pathentity.d()) {
++            BlockPosition blockPosition = new BlockPosition(pathpoint.a, pathpoint.b, pathpoint.c);
++            result.add(blockPosition);
++        }
++        List<BlockPosition> list1 = (List) result;
+         Set<BlockPosition> set = this.a(worldserver, list, list1);
+         int j = pathentity.f() - 1;
+ 
+@@ -38,7 +45,7 @@ public class BehaviorInteractDoor extends Behavior<EntityLiving> {
      }
  
-     private void a(WorldServer worldserver, java.util.Map<BlockPosition, Integer> list, Set<app.akarin.server.IndexedBlockPosition> set, int i, EntityLiving entityliving, BehaviorController<?> behaviorcontroller) { // Akarin - List -> Map, IndexedBlockPosition
--        set.forEach((indexedblockposition) -> { // Akarin - IndexedBlockPosition
-+        for (IndexedBlockPosition indexedblockposition : set) {// Akarin - IndexedBlockPosition
-             BlockPosition blockposition = indexedblockposition.get(); // Akarin - IndexedBlockPosition
-             // int j = list.indexOf(blockposition); // Akarin - IndexedBlockPosition
+     private void a(WorldServer worldserver, List<BlockPosition> list, Set<BlockPosition> set, int i, EntityLiving entityliving, BehaviorController<?> behaviorcontroller) {
+-        set.forEach((blockposition) -> {
++        for (BlockPosition blockposition : set) {
+             int j = list.indexOf(blockposition);
              IBlockData iblockdata = worldserver.getType(blockposition);
-@@ -80,10 +83,10 @@ public class BehaviorInteractDoor extends Behavior<EntityLiving> {
-                 boolean flag = indexedblockposition.index() >= i; // Akarin - IndexedBlockPosition
+             Block block = iblockdata.getBlock();
+@@ -47,10 +54,10 @@ public class BehaviorInteractDoor extends Behavior<EntityLiving> {
+                 boolean flag = j >= i;
  
                  // CraftBukkit start - entities opening doors
 -                org.bukkit.event.entity.EntityInteractEvent event = new org.bukkit.event.entity.EntityInteractEvent(entityliving.getBukkitEntity(), org.bukkit.craftbukkit.block.CraftBlock.at(entityliving.world, blockposition));
@@ -235,7 +252,7 @@ index effb2942a8a3fa55030219689eeae4beb2a67cdf..e42e1920fbadb47d02fa748fbe5aba77
                  }
                  // CaftBukkit end
                  ((BlockDoor) block).setDoor(worldserver, blockposition, flag);
-@@ -103,7 +106,7 @@ public class BehaviorInteractDoor extends Behavior<EntityLiving> {
+@@ -70,7 +77,7 @@ public class BehaviorInteractDoor extends Behavior<EntityLiving> {
                  }
              }
  
