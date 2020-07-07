@@ -6,10 +6,10 @@ Subject: [PATCH] Add server configuration
 
 
 diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
-index 959e4e7e7442d56d3717b423e10a589bbed1756e..dce4b23ba4f39fb8d10db7b681782b563b7a145e 100644
+index 65a40c4a9b24fa607d284e203becba034520b75d..31cce76b295923baba62f27a9c95e1845dfa28b4 100644
 --- a/src/main/java/org/bukkit/Server.java
 +++ b/src/main/java/org/bukkit/Server.java
-@@ -1432,6 +1432,14 @@ public interface Server extends PluginMessageRecipient {
+@@ -1446,6 +1446,14 @@ public interface Server extends PluginMessageRecipient {
          }
          // Tuinity end - add config to timings report
  

@@ -36,15 +36,12 @@ index 4263eb917274ddc7acd9651caf7510a36c0558d6..aec534594c04d1e6d192ff6143ba9571
  
          // finished ticking, actual cleanup time
 diff --git a/src/main/java/net/minecraft/server/ChunkProviderServer.java b/src/main/java/net/minecraft/server/ChunkProviderServer.java
-index 507105a2cd64c4f82b123c40d77686199e72a1d7..4e8d783336bd787328a990368273b9b9b01345c3 100644
+index 0459a591ac5a32de36ba37410744994377457abb..4c3707852389dc7192feb3c1190484305a0c1c7d 100644
 --- a/src/main/java/net/minecraft/server/ChunkProviderServer.java
 +++ b/src/main/java/net/minecraft/server/ChunkProviderServer.java
-@@ -638,9 +638,9 @@ public class ChunkProviderServer extends IChunkProvider {
-                 return ifLoaded;
-             }
+@@ -640,7 +640,7 @@ public class ChunkProviderServer extends IChunkProvider {
              // Paper end
--            GameProfilerFiller gameprofilerfiller = this.world.getMethodProfiler();
-+            //GameProfilerFiller gameprofilerfiller = this.world.getMethodProfiler(); // Akarin - remove caller
+             GameProfilerFiller gameprofilerfiller = this.world.getMethodProfiler();
  
 -            gameprofilerfiller.c("getChunk");
 +            //gameprofilerfiller.c("getChunk"); // Akarin - remove caller
@@ -60,12 +57,9 @@ index 507105a2cd64c4f82b123c40d77686199e72a1d7..4e8d783336bd787328a990368273b9b9
              CompletableFuture<Either<IChunkAccess, PlayerChunk.Failure>> completablefuture = this.getChunkFutureMainThread(i, j, chunkstatus, flag, true); // Paper
  
              if (!completablefuture.isDone()) { // Paper
-@@ -730,13 +730,13 @@ public class ChunkProviderServer extends IChunkProvider {
-             this.chunkMapDistance.addTicketAtLevel(TicketType.REQUIRED_LOAD, chunkcoordintpair, l, identifier); // Tuinity - prevent plugin unloads from removing our ticket
-             if (isUrgent) this.chunkMapDistance.markUrgent(chunkcoordintpair); // Paper
+@@ -732,11 +732,11 @@ public class ChunkProviderServer extends IChunkProvider {
              if (this.a(playerchunk, l)) {
--                GameProfilerFiller gameprofilerfiller = this.world.getMethodProfiler();
-+                //GameProfilerFiller gameprofilerfiller = this.world.getMethodProfiler(); // Akarin - remove caller
+                 GameProfilerFiller gameprofilerfiller = this.world.getMethodProfiler();
  
 -                gameprofilerfiller.enter("chunkLoad");
 +                //gameprofilerfiller.enter("chunkLoad"); // Akarin - remove caller
@@ -246,7 +240,7 @@ index 423e4d12aba9197b936e69dfd4146ceeca3a30c4..ddfd127d0e618d373086caf2c0ce6ca2
  
                      ++k;
 diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
-index f8ca56be883417ed947c5bbc11bbe732ebcf593f..13fadd78d6ff7275c26d67fa5ae78b516da02d8e 100644
+index 3db19a9bab8ffdc42f280a27c867bf7d1a1ab9e7..f6ea12911e87ab081621910035bd713d4f11e584 100644
 --- a/src/main/java/net/minecraft/server/Entity.java
 +++ b/src/main/java/net/minecraft/server/Entity.java
 @@ -465,7 +465,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
@@ -267,7 +261,7 @@ index f8ca56be883417ed947c5bbc11bbe732ebcf593f..13fadd78d6ff7275c26d67fa5ae78b51
      }
  
      // Paper start
-@@ -683,7 +683,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -679,7 +679,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
                  }
              }
  
@@ -276,7 +270,7 @@ index f8ca56be883417ed947c5bbc11bbe732ebcf593f..13fadd78d6ff7275c26d67fa5ae78b51
              if (this.x.g() > 1.0E-7D) {
                  vec3d = vec3d.h(this.x);
                  this.x = Vec3D.a;
-@@ -692,7 +692,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -688,7 +688,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
              // Paper start - ignore movement changes while inactive.
              if (isTemporarilyActive && !(this instanceof EntityItem || this instanceof EntityMinecartAbstract) && vec3d == getMot() && enummovetype == EnumMoveType.SELF) {
                  setMot(Vec3D.a);
@@ -285,7 +279,7 @@ index f8ca56be883417ed947c5bbc11bbe732ebcf593f..13fadd78d6ff7275c26d67fa5ae78b51
                  return;
              }
              // Paper end
-@@ -706,8 +706,8 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -701,8 +701,8 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
                  this.recalcPosition();
              }
  
@@ -296,7 +290,7 @@ index f8ca56be883417ed947c5bbc11bbe732ebcf593f..13fadd78d6ff7275c26d67fa5ae78b51
              this.positionChanged = !MathHelper.b(vec3d.x, vec3d1.x) || !MathHelper.b(vec3d.z, vec3d1.z);
              this.v = vec3d.y != vec3d1.y;
              this.onGround = this.v && vec3d.y < 0.0D;
-@@ -814,7 +814,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -809,7 +809,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
                  this.setFireTicks(-this.getMaxFireTicks());
              }
  
@@ -305,7 +299,7 @@ index f8ca56be883417ed947c5bbc11bbe732ebcf593f..13fadd78d6ff7275c26d67fa5ae78b51
          }
          // Tuinity start - detailed watchdog information
          } finally {
-@@ -2384,7 +2384,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -2376,7 +2376,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
                  WorldServer worldserver1 = minecraftserver.getWorldServer(resourcekey);
  
                  if (true && !this.isPassenger() && this.portalTicks++ >= i) { // CraftBukkit
@@ -314,7 +308,7 @@ index f8ca56be883417ed947c5bbc11bbe732ebcf593f..13fadd78d6ff7275c26d67fa5ae78b51
                      this.portalTicks = i;
                      this.portalCooldown = this.getDefaultPortalCooldown();
                      // CraftBukkit start
-@@ -2394,7 +2394,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -2386,7 +2386,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
                          this.a(worldserver1);
                      }
                      // CraftBukkit end
@@ -323,7 +317,7 @@ index f8ca56be883417ed947c5bbc11bbe732ebcf593f..13fadd78d6ff7275c26d67fa5ae78b51
                  }
  
                  this.inPortal = false;
-@@ -2778,14 +2778,14 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -2770,14 +2770,14 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
          }
          // Paper end
          if (this.world instanceof WorldServer && !this.dead) {
@@ -340,7 +334,7 @@ index f8ca56be883417ed947c5bbc11bbe732ebcf593f..13fadd78d6ff7275c26d67fa5ae78b51
              Vec3D vec3d = this.getMot();
              float f = 0.0F;
              BlockPosition blockposition = location; // CraftBukkit
-@@ -2864,7 +2864,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -2856,7 +2856,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
              this.decouple();
              // CraftBukkit end
  
@@ -349,7 +343,7 @@ index f8ca56be883417ed947c5bbc11bbe732ebcf593f..13fadd78d6ff7275c26d67fa5ae78b51
              Entity entity = this.getEntityType().a((World) worldserver);
  
              if (entity != null) {
-@@ -2886,10 +2886,10 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -2878,10 +2878,10 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
              }
  
              this.bJ();
@@ -464,7 +458,7 @@ index 605bbf0174e60f795e445193a0284739ea452946..027a55223c660f25b0b52f99efed5b0c
      }
  
 diff --git a/src/main/java/net/minecraft/server/EntityLiving.java b/src/main/java/net/minecraft/server/EntityLiving.java
-index 70c2be22b79ec767f906308a67e4af668ec6fe0d..16fc3737e7150cac9d9cfe729fa2f138b0379901 100644
+index 4545bd371c460d360a65d80b31af7819d718c97a..eef11ac58097cb84c3b3a47e4e33008a91c4f90e 100644
 --- a/src/main/java/net/minecraft/server/EntityLiving.java
 +++ b/src/main/java/net/minecraft/server/EntityLiving.java
 @@ -263,7 +263,7 @@ public abstract class EntityLiving extends Entity {
@@ -579,7 +573,7 @@ index 63fa1581ebe1698c09635807998c675fe117fe7b..26b546afd919fa70bae4947e120e1ecd
          if (this.eO()) {
              ++this.bA;
 diff --git a/src/main/java/net/minecraft/server/EntityPlayer.java b/src/main/java/net/minecraft/server/EntityPlayer.java
-index eeed8edfdfde47b5eec7a2f6c9871fcfa1930b63..b2b4754f07df5a37fedf510a3e4326afbd80b4f8 100644
+index 8fd3c913ac5315a5c1cce002498bfe2ec08aaf42..6ea4178508b059cfb8c35d28849b088627b118c2 100644
 --- a/src/main/java/net/minecraft/server/EntityPlayer.java
 +++ b/src/main/java/net/minecraft/server/EntityPlayer.java
 @@ -900,7 +900,7 @@ public class EntityPlayer extends EntityHuman implements ICrafting {
@@ -647,7 +641,7 @@ index e408ec8c645e9ceb278a13a5b0de8ecf57f3929e..a0b47a4f1d095e609ea32a2a2810745b
              }
  
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 469db917dd8c5057a13b1ba021de24cb2907e520..7b27fb83acdb2792c16659f4301a356f33421f71 100644
+index 469db917dd8c5057a13b1ba021de24cb2907e520..1ee6ac550faade121d7fe9b08d713b3e9ac4e477 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
 @@ -995,15 +995,15 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
@@ -745,13 +739,7 @@ index 469db917dd8c5057a13b1ba021de24cb2907e520..7b27fb83acdb2792c16659f4301a356f
          Iterator iterator = this.getWorlds().iterator();
  
          // CraftBukkit start
-@@ -1395,18 +1395,18 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
-             worldserver.hasPhysicsEvent =  org.bukkit.event.block.BlockPhysicsEvent.getHandlerList().getRegisteredListeners().length > 0; // Paper
-             TileEntityHopper.skipHopperEvents = worldserver.paperConfig.disableHopperMoveEvents || org.bukkit.event.inventory.InventoryMoveItemEvent.getHandlerList().getRegisteredListeners().length == 0; // Paper
- 
--            this.methodProfiler.a(() -> {
-+            java.util.function.Supplier<Object> pleaseRemoveMe = (() -> { // Akarin - remove caller
-                 return worldserver + " " + worldserver.getDimensionKey().a();
+@@ -1400,13 +1400,13 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
              });
              /* Drop global time updates
              if (this.ticks % 20 == 0) {
@@ -829,15 +817,12 @@ index e6dc5b9ce1b2f844d84a7cdf9bce030bc8eb568d..600c506ea7dc32f62d2acd3919186798
                  this.p = pathentity.m();
                  this.q = j;
 diff --git a/src/main/java/net/minecraft/server/PathfinderGoalSelector.java b/src/main/java/net/minecraft/server/PathfinderGoalSelector.java
-index d3f0327a2a7cdedf3fe8d10df981a9f1cb378d26..aaa68ea89d043c736a2a1b258c8ab5881c878837 100644
+index d3f0327a2a7cdedf3fe8d10df981a9f1cb378d26..81df1cf34db8a1477bd394acd4e10b0da197c595 100644
 --- a/src/main/java/net/minecraft/server/PathfinderGoalSelector.java
 +++ b/src/main/java/net/minecraft/server/PathfinderGoalSelector.java
-@@ -79,9 +79,9 @@ public class PathfinderGoalSelector {
-     private static final PathfinderGoal.Type[] PATHFINDER_GOAL_TYPES = PathfinderGoal.Type.values(); // Paper - remove streams from pathfindergoalselector
- 
+@@ -81,7 +81,7 @@ public class PathfinderGoalSelector {
      public void doTick() {
--        GameProfilerFiller gameprofilerfiller = (GameProfilerFiller) this.e.get();
-+        //GameProfilerFiller gameprofilerfiller = (GameProfilerFiller) this.e.get(); // Akarin - remove caller
+         GameProfilerFiller gameprofilerfiller = (GameProfilerFiller) this.e.get();
  
 -        gameprofilerfiller.enter("goalCleanup");
 +        //gameprofilerfiller.enter("goalCleanup"); // Akarin - remove caller
@@ -876,15 +861,11 @@ index d3f0327a2a7cdedf3fe8d10df981a9f1cb378d26..aaa68ea89d043c736a2a1b258c8ab588
  
      public final Stream<PathfinderGoalWrapped> getExecutingGoals() { return d(); } // Paper - OBFHELPER
 diff --git a/src/main/java/net/minecraft/server/PlayerChunkMap.java b/src/main/java/net/minecraft/server/PlayerChunkMap.java
-index 4dd6f48caf552345a606576a476bac6ff3249a9b..5f61fadb8f72cbbaa08804b8d7e5ce75dc0c6197 100644
+index 4dd6f48caf552345a606576a476bac6ff3249a9b..44040c4dab5d662d6508df25fe8a693e2771186f 100644
 --- a/src/main/java/net/minecraft/server/PlayerChunkMap.java
 +++ b/src/main/java/net/minecraft/server/PlayerChunkMap.java
-@@ -897,20 +897,20 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
-     private static final double UNLOAD_QUEUE_RESIZE_FACTOR = 0.90; // Spigot // Paper - unload more
- 
-     protected void unloadChunks(BooleanSupplier booleansupplier) {
--        GameProfilerFiller gameprofilerfiller = this.world.getMethodProfiler();
-+        //GameProfilerFiller gameprofilerfiller = this.world.getMethodProfiler(); // Akarin - remove caller
+@@ -900,17 +900,17 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+         GameProfilerFiller gameprofilerfiller = this.world.getMethodProfiler();
  
          try (Timing ignored = this.world.timings.poiUnload.startTiming()) { // Paper
 -        gameprofilerfiller.enter("poi");
@@ -923,7 +904,7 @@ index 4dd6f48caf552345a606576a476bac6ff3249a9b..5f61fadb8f72cbbaa08804b8d7e5ce75
                  try (co.aikar.timings.Timing ignored1 = this.world.timings.chunkSaveDataSerialization.startTiming()) { // Paper
                      nbttagcompound = ChunkRegionLoader.saveChunk(this.world, ichunkaccess);
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index c40255263ee7c396b5f17c059212116832090f54..e87a91f7313d45a2056f72d4727a6da849df01fc 100644
+index 37f55c66b6cbca9650b050fe08f60c101c2d35bf..6c13288d7f1379c23f4802295795053d9120d001 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
 @@ -195,7 +195,7 @@ public class PlayerConnection implements PacketListenerPlayIn {
@@ -998,7 +979,7 @@ index 149d2b4f929c11b8baf17163bbd6ff8220a95e86..1784c635dba61428bd62c0d2311770a9
              this.f.clear();
          }
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index d1f3de21b0c54fa83484d3342489331fc94294d7..9a524dc01aa6d3a14bf195b3b091c2b280878d45 100644
+index d1f3de21b0c54fa83484d3342489331fc94294d7..55dc986ea37ef90ee9eca624954adb0add93c56b 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -480,9 +480,9 @@ public abstract class World implements GeneratorAccess, AutoCloseable {
@@ -1013,27 +994,15 @@ index d1f3de21b0c54fa83484d3342489331fc94294d7..9a524dc01aa6d3a14bf195b3b091c2b2
                  }
  
                  /*
-@@ -839,9 +839,9 @@ public abstract class World implements GeneratorAccess, AutoCloseable {
-     }
- 
+@@ -841,7 +841,7 @@ public abstract class World implements GeneratorAccess, AutoCloseable {
      public void tickBlockEntities() {
--        GameProfilerFiller gameprofilerfiller = this.getMethodProfiler();
-+        //GameProfilerFiller gameprofilerfiller = this.getMethodProfiler(); // Akarin - remove caller
+         GameProfilerFiller gameprofilerfiller = this.getMethodProfiler();
  
 -        gameprofilerfiller.enter("blockEntities");
 +        //gameprofilerfiller.enter("blockEntities"); // Akarin - remove caller
          timings.tileEntityTick.startTiming(); // Spigot
          if (!this.tileEntityListUnload.isEmpty()) {
              // Paper start - Use alternate implementation with faster contains
-@@ -874,7 +874,7 @@ public abstract class World implements GeneratorAccess, AutoCloseable {
- 
-                 if (this.getChunkProvider().a(blockposition) && this.getWorldBorder().a(blockposition)) {
-                     try {
--                        gameprofilerfiller.a(() -> {
-+                        /*gameprofilerfiller.a*/java.util.function.Supplier<Object> pleaseRemoveMe = (() -> { // Akarin - remove caller
-                             return String.valueOf(TileEntityTypes.a(tileentity.getTileType()));
-                         });
-                         tileentity.tickTimer.startTiming(); // Spigot
 @@ -884,7 +884,7 @@ public abstract class World implements GeneratorAccess, AutoCloseable {
                              tileentity.w();
                          }
@@ -1098,15 +1067,11 @@ index d1f3de21b0c54fa83484d3342489331fc94294d7..9a524dc01aa6d3a14bf195b3b091c2b2
          int j = MathHelper.f((axisalignedbb.maxX + 2.0D) / 16.0D);
          int k = MathHelper.floor((axisalignedbb.minZ - 2.0D) / 16.0D);
 diff --git a/src/main/java/net/minecraft/server/WorldServer.java b/src/main/java/net/minecraft/server/WorldServer.java
-index 6d37bbfeb7491a6005df8bdd73ef0be3489bfe89..ed2b214c8971f5b0e98de282007975c302a458da 100644
+index fff694c3701e582010b1557650e5296dfdfaf961..41a366cf79a33844702f8da22797c7bb02a427ef 100644
 --- a/src/main/java/net/minecraft/server/WorldServer.java
 +++ b/src/main/java/net/minecraft/server/WorldServer.java
-@@ -749,12 +749,12 @@ public class WorldServer extends World implements GeneratorAccessSeed {
-     }
- 
-     public void doTick(BooleanSupplier booleansupplier) {
--        GameProfilerFiller gameprofilerfiller = this.getMethodProfiler();
-+        //GameProfilerFiller gameprofilerfiller = this.getMethodProfiler(); // Akarin - remove caller
+@@ -752,9 +752,9 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+         GameProfilerFiller gameprofilerfiller = this.getMethodProfiler();
  
          this.ticking = true;
 -        gameprofilerfiller.enter("world border");
@@ -1201,12 +1166,9 @@ index 6d37bbfeb7491a6005df8bdd73ef0be3489bfe89..ed2b214c8971f5b0e98de282007975c3
      }
  
      protected void b() {
-@@ -1047,9 +1047,9 @@ public class WorldServer extends World implements GeneratorAccessSeed {
-         boolean flag = this.isRaining();
-         int j = chunkcoordintpair.d();
+@@ -1049,7 +1049,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
          int k = chunkcoordintpair.e();
--        GameProfilerFiller gameprofilerfiller = this.getMethodProfiler();
-+        //GameProfilerFiller gameprofilerfiller = this.getMethodProfiler(); // Akarin - remove caller
+         GameProfilerFiller gameprofilerfiller = this.getMethodProfiler();
  
 -        gameprofilerfiller.enter("thunder");
 +        //gameprofilerfiller.enter("thunder"); // Akarin - remove caller
@@ -1243,15 +1205,8 @@ index 6d37bbfeb7491a6005df8bdd73ef0be3489bfe89..ed2b214c8971f5b0e98de282007975c3
              timings.chunkTicksBlocks.stopTiming(); // Paper
              getChunkProvider().getLightEngine().queueUpdate(); // Paper
              // Paper end
-@@ -1279,15 +1279,15 @@ public class WorldServer extends World implements GeneratorAccessSeed {
-             entity.lastPitch = entity.pitch;
-             if (entity.inChunk) {
-                 ++entity.ticksLived;
--                GameProfilerFiller gameprofilerfiller = this.getMethodProfiler();
-+                //GameProfilerFiller gameprofilerfiller = this.getMethodProfiler(); // Akarin - remove caller
- 
--                gameprofilerfiller.a(() -> {
-+                /*gameprofilerfiller.a*/java.util.function.Supplier<Object> pleaseRemoveMe = (() -> { // Akarin - remove caller
+@@ -1284,10 +1284,10 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+                 gameprofilerfiller.a(() -> {
                      return IRegistry.ENTITY_TYPE.getKey(entity.getEntityType()).toString();
                  });
 -                gameprofilerfiller.c("tickNonPassenger");
@@ -1263,15 +1218,8 @@ index 6d37bbfeb7491a6005df8bdd73ef0be3489bfe89..ed2b214c8971f5b0e98de282007975c3
              }
  
              this.chunkCheck(entity);
-@@ -1320,14 +1320,14 @@ public class WorldServer extends World implements GeneratorAccessSeed {
-                 entity1.lastPitch = entity1.pitch;
-                 if (entity1.inChunk) {
-                     ++entity1.ticksLived;
--                    GameProfilerFiller gameprofilerfiller = this.getMethodProfiler();
-+                    //GameProfilerFiller gameprofilerfiller = this.getMethodProfiler(); // Akarin - remove caller
- 
--                    gameprofilerfiller.a(() -> {
-+                    /*gameprofilerfiller.a*/java.util.function.Supplier<Object> pleaseRemoveMe = (() -> { // Akarin - remove caller
+@@ -1325,9 +1325,9 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+                     gameprofilerfiller.a(() -> {
                          return IRegistry.ENTITY_TYPE.getKey(entity1.getEntityType()).toString();
                      });
 -                    gameprofilerfiller.c("tickPassenger");

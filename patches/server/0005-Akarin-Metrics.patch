@@ -6,7 +6,7 @@ Subject: [PATCH] Akarin Metrics
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/Metrics.java b/src/main/java/com/destroystokyo/paper/Metrics.java
-index 24641501aeae0f2c2c5ce877775c7b971fb051bf..246696a0862c9a57329a7ea6a9eb7da00adb60b0 100644
+index 8a19c96499c22f0d4705613ffec38d5677e1a72d..57a35ece6d245d0909e5b8fa9bc0198c5a82886c 100644
 --- a/src/main/java/com/destroystokyo/paper/Metrics.java
 +++ b/src/main/java/com/destroystokyo/paper/Metrics.java
 @@ -581,7 +581,7 @@ public class Metrics {

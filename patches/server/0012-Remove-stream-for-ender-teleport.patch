@@ -5,10 +5,10 @@ Subject: [PATCH] Remove stream for ender teleport
 
 
 diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
-index 6cf03cb5bd52706c59c74d9db9c12a65087d8e11..6676805804e949dd9f7cc6341f854cda30b21dd1 100644
+index 053233005086ae36f1091434f3f74a13ee83ef78..aa0c314e4c8ecc9bb0210b09f0db95bdccf1748f 100644
 --- a/src/main/java/net/minecraft/server/Entity.java
 +++ b/src/main/java/net/minecraft/server/Entity.java
-@@ -3023,7 +3023,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -3015,7 +3015,7 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
              WorldServer worldserver = (WorldServer) this.world;
  
              this.setPositionRotation(d0, d1, d2, this.yaw, this.pitch);
@@ -17,7 +17,7 @@ index 6cf03cb5bd52706c59c74d9db9c12a65087d8e11..6676805804e949dd9f7cc6341f854cda
                  worldserver.chunkCheck(entity);
                  entity.aE = true;
                  Iterator iterator = entity.passengers.iterator();
-@@ -3270,6 +3270,14 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
+@@ -3262,6 +3262,14 @@ public abstract class Entity implements INamableTileEntity, ICommandListener, Ke
      public Stream<Entity> co() {
          return Stream.concat(Stream.of(this), this.passengers.stream().flatMap(Entity::co));
      }

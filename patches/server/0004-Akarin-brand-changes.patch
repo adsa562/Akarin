@@ -19,10 +19,10 @@ index eb71fa6e39ecf477f18a2ae5a159d8b62ad4bfb5..0880abb47bbdf1c6117343ac04edaac0
  
      public CrashReport b(CrashReport crashreport) {
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 434fe2e4cff61fef58a9531d6036db1054dc0f69..f9db12642c8e843b20a83c6811ee6a12725f1c48 100644
+index 97e2f381bf84b7d8bb508ce6f6c31ab1d1814bc5..3ca9528cf311f7afe0b85c72c4249960b31d7014 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -229,7 +229,7 @@ import javax.annotation.Nullable; // Paper
+@@ -231,7 +231,7 @@ import javax.annotation.Nullable; // Paper
  import javax.annotation.Nonnull; // Paper
  
  public final class CraftServer implements Server {
