@@ -1,11 +1,10 @@
-@Library('forge-shared-library') _
 pipeline {
   agent any
   stages {
     stage('Initialize') {
       steps {
         sh '''git fetch origin
-git reset --hard origin/1.16.1
+git reset --hard
 git submodule update --init --recursive'''
       }
     }
