@@ -31,6 +31,6 @@ git submodule update --init --recursive'''
   environment {
     DISCORD_WEBHOOK_URL = credentials('3e8105ad-8e03-4550-bc66-a27438ec6fb3')
     CHANGES = getChanges(currentBuild)
-    ARTIFACT = "http://josephworks.ddns.net:8080/job/Akarin/job/1.15.2/${currentBuild.id}/artifact/target/akarin-1.15.2-launcher.jar"
+    ARTIFACT = "http://josephworks.ddns.net:8080/job/Akarin/job/1.16.1/${currentBuild.id}/artifact/target/akarin-1.16.1-launcher.jar"
   }
 }
